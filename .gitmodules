@@ -1,0 +1,18 @@
+[submodule "linkerd2"]
+	path = linkerd2
+	url = git@github.com:linkerd/linkerd2
+[submodule "linkerd2-proxy"]
+	path = linkerd2-proxy
+	url = git@github.com:linkerd/linkerd2-proxy
+[submodule "linkerd2-proxy-init"]
+	path = linkerd2-proxy-init
+	url = git@github.com:linkerd/linkerd2-proxy-init
+[submodule "linkerd-await"]
+	path = linkerd-await
+	url = git@github.com:linkerd/linkerd-await
+[submodule "kubert"]
+	path = kubert
+	url = git@github.com:olix0r/kubert
+[submodule "linkerd-failover"]
+	path = linkerd-failover
+	url = git@github.com:linkerd/linkerd-failover
