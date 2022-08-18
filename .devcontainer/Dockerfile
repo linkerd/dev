@@ -166,7 +166,7 @@ ARG ACTIONLINT_VERSION=v1.6.15
 RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin actionlint
 
-FROM docker.io/rust:${RUST_TOOLCHAIN}-slim as json5-to-json
+FROM docker.io/rust:1.63.0-slim as json5-to-json
 RUN cargo install json5-to-json
 
 FROM docker.io/node:16-bullseye-slim as node
