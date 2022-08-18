@@ -16,3 +16,6 @@
 [submodule "linkerd-failover"]
 	path = linkerd-failover
 	url = git@github.com:linkerd/linkerd-failover
+[submodule "linkerd2-proxy-api"]
+	path = linkerd2-proxy-api
+	url = git@github.com:linkerd/linkerd2-proxy-api
