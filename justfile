@@ -37,12 +37,11 @@ _actionlint-fmt := if env_var_or_default("GITHUB_ACTIONS", "") != "true" { "" } 
 action-lint:
     actionlint \
         {{ if _actionlint-fmt != '' { "-format '" + _actionlint-fmt + "'" } else { "" } }} \
-        */.github/workflows/*.yml
+        .github/workflows/*.yml
 
 # Ensure all devcontainer versions are in sync
 action-dev-check:
-    action-dev-check
-    git submodule foreach action-dev-check
+    .devcontainer/bin/action-dev-check
 
 ##
 ## Other tools...

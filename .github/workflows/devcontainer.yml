@@ -18,13 +18,6 @@ jobs:
       - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
       - run: just devcontainer-build ci
 
-  actions:
-    runs-on: ubuntu-latest
-    container: ghcr.io/linkerd/devcontainer:v29-tools
-    steps:
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
-      - run: .devcontainer/bin/action-dev-check
-
   devcontainer-image:
     runs-on: ubuntu-latest
     container: ghcr.io/linkerd/devcontainer:v29-tools
