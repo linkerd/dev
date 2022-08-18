@@ -1,0 +1,43 @@
+name: Devcontainer
+
+on:
+  pull_request:
+    paths:
+      - .devcontainer/**
+      - .github/workflows/devcontainer.yml
+      - justfile
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ghcr.io/linkerd/devcontainer:v29-tools
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - run: just devcontainer-build ci
+
+  actions:
+    runs-on: ubuntu-latest
+    container: ghcr.io/linkerd/devcontainer:v29-tools
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - run: .devcontainer/bin/action-dev-check
+
+  devcontainer-image:
+    runs-on: ubuntu-latest
+    container: ghcr.io/linkerd/devcontainer:v29-tools
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - run: |
+          image=$(json5-to-json <.devcontainer/devcontainer.json |jq -Mr .image)
+          line=$(grep -nF '"image"' .devcontainer/devcontainer.json |cut -d':' -f1 |head -n1)
+          if [ "$image" == "null" ]; then
+            echo "::error file=.devcontainer/devcontainer.json,line=${line}::Missing image"
+            exit 1
+          fi
+          if ! docker pull "$image" ; then
+            echo "::error file=.devcontainer/devcontainer.json,line=${line}::Unable to pull image: $image"
+            exit 1
+          fi

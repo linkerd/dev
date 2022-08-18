@@ -1,0 +1,8 @@
+version: 2
+updates:
+  - package-ecosystem: "docker"
+    directory: "/.devcontainer"
+    schedule:
+      interval: daily
+      time: "05:00"
+      timezone: "UTC"
