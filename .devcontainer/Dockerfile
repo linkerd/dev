@@ -169,7 +169,7 @@ RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERS
 FROM docker.io/rust:1.63.0-slim as json5-to-json
 RUN cargo install json5-to-json
 
-FROM docker.io/node:16-bullseye-slim as node
+FROM docker.io/node:18-bullseye-slim as node
 ARG MARKDOWNLINT_VERSION=0.5.1
 RUN npm install "markdownlint-cli2@${MARKDOWNLINT_VERSION}" --global
 
