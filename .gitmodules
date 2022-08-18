@@ -19,3 +19,6 @@
 [submodule "linkerd2-proxy-api"]
 	path = linkerd2-proxy-api
 	url = git@github.com:linkerd/linkerd2-proxy-api
+[submodule "k8s-gateway-api-rs"]
+	path = k8s-gateway-api-rs
+	url = git@github.com:linkerd/k8s-gateway-api-rs
