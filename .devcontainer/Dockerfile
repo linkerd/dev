@@ -1,6 +1,3 @@
-ARG GO_VERSION=1.18.5
-ARG RUST_TOOLCHAIN=1.63.0
-
 ##
 ## Base
 ##
@@ -64,7 +61,7 @@ ARG CARGO_TARPAULIN_VERSION=0.20.1
 RUN url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAULIN_VERSION}/cargo-tarpaulin-${CARGO_TARPAULIN_VERSION}-travis.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin cargo-tarpaulin
 
-FROM docker.io/rust:${RUST_TOOLCHAIN}-slim-bullseye as rust
+FROM docker.io/rust:1.63.0-slim-bullseye as rust
 RUN rustup component add clippy rustfmt
 RUN apt update && apt upgrade -y --autoremove \
     && apt install -y \
@@ -95,7 +92,7 @@ ENV PROTOC_INCLUDE=/usr/local/include
 ## Go image
 ##
 
-FROM docker.io/golang:${GO_VERSION} as go
+FROM docker.io/golang:1.18.5 as go
 RUN apt update && apt upgrade -y --autoremove \
     && apt install -y \
         curl \
@@ -169,7 +166,7 @@ ARG ACTIONLINT_VERSION=v1.6.15
 RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin actionlint
 
-FROM docker.io/rust:${RUST_TOOLCHAIN}-slim as json5-to-json
+FROM docker.io/rust:1.63.0-slim as json5-to-json
 RUN cargo install json5-to-json
 
 FROM docker.io/node:16-bullseye-slim as node
