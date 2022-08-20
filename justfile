@@ -1,6 +1,6 @@
 # See https://just.systems/man/en
 
-lint: md-lint sh-lint
+lint: md-lint sh-lint action-lint action-dev-check
 
 ##
 ## Devcontainer
@@ -51,7 +51,13 @@ md-lint:
     markdownlint-cli2 '**/*.md' '!**/node_modules' '!**/target'
 
 sh-lint:
-    bin/shellcheck-all
+    #!/usr/bin/env bash
+    set -euo pipefail
+    files=$(while IFS= read -r f ; do
+        if [ "$(file -b --mime-type "$f")" = text/x-shellscript ]; then echo "$f"; fi
+    done < <(find .devcontainer -type f ! \( -path ./.git/\* -or -path \*/target/\* \)) | xargs)
+    echo "shellcheck $files" >&2
+    shellcheck $files
 
 ##
 ## Git
