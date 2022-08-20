@@ -226,6 +226,7 @@ RUN groupadd --gid=1000 code \
 # Copy node utilities first, because the bin directory include symlinks that we want to preserve.
 COPY --from=node /usr/local/man/man1/node.1 /usr/local/man/man1/
 COPY --from=node /usr/local/include/node /usr/local/include/node
+COPY --from=node /opt/ /opt/
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 COPY --from=node /usr/local/bin/ /usr/local/bin/
 
