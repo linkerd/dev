@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-IMAGE=$(json5-to-json <.devcontainer/devcontainer.json |jq -r '.image')
+IMAGE=$(j5j .devcontainer/devcontainer.json |jq -r '.image')
 
 check_image() {
     if [ "$1" != "$IMAGE" ]; then
