@@ -63,8 +63,10 @@ RUN url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAUL
 
 FROM docker.io/rust:1.63.0-slim-bullseye as rust
 RUN rustup component add clippy rustfmt
+RUN rustup target add x86_64-unknown-linux-musl
 RUN apt update && apt upgrade -y --autoremove \
     && apt install -y \
+        binutils-x86-64-linux-gnu \
         clang \
         cmake \
         curl \
@@ -72,6 +74,7 @@ RUN apt update && apt upgrade -y --autoremove \
         jo \
         jq \
         libssl-dev \
+        musl-tools \
         pkg-config \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 COPY --from=cargo-action-fmt /usr/local/bin/cargo-action-fmt /usr/local/cargo/bin/
@@ -202,6 +205,7 @@ ENV PROTOC_INCLUDE=/usr/local/include
 FROM docker.io/debian:bullseye as runtime
 RUN apt update && apt upgrade -y --autoremove \
     && apt install -y \
+        binutils-x86-64-linux-gnu \
         clang curl \
         cmake \
         file \
@@ -210,6 +214,7 @@ RUN apt update && apt upgrade -y --autoremove \
         libssl-dev \
         locales \
         lsb-release \
+        musl-tools \
         pkg-config \
         sudo \
         time \
