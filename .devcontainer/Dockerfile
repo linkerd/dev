@@ -169,8 +169,10 @@ ARG ACTIONLINT_VERSION=v1.6.15
 RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin actionlint
 
-FROM docker.io/rust:1.63.0-slim as json5-to-json
-RUN cargo install json5-to-json
+FROM base as j5j
+ARG J5J_VERSION=v0.2.0
+RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
+    scurl "$url" | tar zvxf - -C /usr/local/bin j5j
 
 FROM docker.io/node:16-bullseye-slim as node
 ARG MARKDOWNLINT_VERSION=0.5.1
@@ -183,7 +185,7 @@ RUN npm install "markdownlint-cli2@${MARKDOWNLINT_VERSION}" --global
 FROM base as tools
 COPY --from=actionlint /usr/local/bin/actionlint /usr/local/bin/
 COPY --from=checksec /usr/local/bin/checksec /usr/local/bin/che
-COPY --from=json5-to-json /usr/local/cargo/bin/json5-to-json /usr/local/bin/
+COPY --from=j5j /usr/local/bin/j5j /usr/local/bin/
 COPY --from=just /usr/local/bin/just /usr/local/bin/
 COPY --from=k8s /usr/local/bin/helm /usr/local/bin/
 COPY --from=k8s /usr/local/bin/helm-docs /usr/local/bin/

@@ -11,24 +11,27 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  devcontainer-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
       - run: docker build .devcontainer
 
-  devcontainer-image:
+  devcontainer-pull:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
-      - run: |
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          sudo apt-get -y --no-install-recommends install jq
-      - run: |
-          # Strip jsonc comments because `jq` doesn't support them.
-          image=$(sed -E '/^\s*\/\/.*/d' .devcontainer/devcontainer.json |jq -Mr .image)
-          line=$(grep -nF '"image"' .devcontainer/devcontainer.json |cut -d':' -f1 |head -n1)
+      - name: Install j5j
+        uses: extractions/setup-crate@504d95f4c6cbfa8975d1094bbf5a42965e46569a
+        with:
+          owner: olix0r
+          name: j5j
+      - name: Pull image
+        shell: bash
+        run: |
+          set -eu
+          image=$(j5j .devcontainer/devcontainer.json |jq -r .image)
+          line=$(grep -nF '"image":' .devcontainer/devcontainer.json |cut -d':' -f1 |head -n1)
           if [ "$image" == "null" ]; then
             echo "::error file=.devcontainer/devcontainer.json,line=$line::Missing image"
             exit 1
