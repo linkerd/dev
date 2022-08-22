@@ -180,7 +180,7 @@ RUN npm install "markdownlint-cli2@${MARKDOWNLINT_VERSION}" --global
 
 FROM base as step
 RUN scurl -O https://dl.step.sm/gh-release/cli/docs-cli-install/v0.21.0/step-cli_0.21.0_amd64.deb \
-    && sudo dpkg -i step-cli_0.21.0_amd64.deb
+    && dpkg -i step-cli_0.21.0_amd64.deb
 
 ##
 ## Tools: Everything needed for a development environment, minus non-root settings.
