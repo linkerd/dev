@@ -178,6 +178,10 @@ FROM docker.io/node:16-bullseye-slim as node
 ARG MARKDOWNLINT_VERSION=0.5.1
 RUN npm install "markdownlint-cli2@${MARKDOWNLINT_VERSION}" --global
 
+FROM base as step
+RUN scurl -O https://dl.step.sm/gh-release/cli/docs-cli-install/v0.21.0/step-cli_0.21.0_amd64.deb \
+    && sudo dpkg -i step-cli_0.21.0_amd64.deb
+
 ##
 ## Tools: Everything needed for a development environment, minus non-root settings.
 ##
@@ -194,6 +198,7 @@ COPY --from=k8s /usr/local/bin/kubectl /usr/local/bin/
 COPY --from=protoc /usr/local/bin/protoc /usr/local/bin/
 COPY --from=protoc /usr/local/include/google /usr/local/include/google
 COPY --from=shellcheck /usr/local/bin/shellcheck /usr/local/bin/
+COPY --from=step /usr/bin/step-cli /usr/local/bin/step
 COPY --from=yq /usr/local/bin/yq /usr/local/bin/
 COPY bin/action-dev-check /usr/local/bin/
 ENV PROTOC_NO_VENDOR=1
