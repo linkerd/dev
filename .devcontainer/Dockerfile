@@ -63,8 +63,10 @@ RUN url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAUL
 
 FROM docker.io/rust:1.63.0-slim-bullseye as rust
 RUN rustup component add clippy rustfmt
+RUN rustup target add x86_64-unknown-linux-musl
 RUN apt update && apt upgrade -y --autoremove \
     && apt install -y \
+        binutils-x86-64-linux-gnu \
         clang \
         cmake \
         curl \
@@ -72,6 +74,7 @@ RUN apt update && apt upgrade -y --autoremove \
         jo \
         jq \
         libssl-dev \
+        musl-tools \
         pkg-config \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 COPY --from=cargo-action-fmt /usr/local/bin/cargo-action-fmt /usr/local/cargo/bin/
@@ -166,12 +169,18 @@ ARG ACTIONLINT_VERSION=v1.6.15
 RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin actionlint
 
-FROM docker.io/rust:1.63.0-slim as json5-to-json
-RUN cargo install json5-to-json
+FROM base as j5j
+ARG J5J_VERSION=v0.2.0
+RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
+    scurl "$url" | tar zvxf - -C /usr/local/bin j5j
 
 FROM docker.io/node:16-bullseye-slim as node
 ARG MARKDOWNLINT_VERSION=0.5.1
 RUN npm install "markdownlint-cli2@${MARKDOWNLINT_VERSION}" --global
+
+FROM base as step
+RUN scurl -O https://dl.step.sm/gh-release/cli/docs-cli-install/v0.21.0/step-cli_0.21.0_amd64.deb \
+    && dpkg -i step-cli_0.21.0_amd64.deb
 
 ##
 ## Tools: Everything needed for a development environment, minus non-root settings.
@@ -180,7 +189,7 @@ RUN npm install "markdownlint-cli2@${MARKDOWNLINT_VERSION}" --global
 FROM base as tools
 COPY --from=actionlint /usr/local/bin/actionlint /usr/local/bin/
 COPY --from=checksec /usr/local/bin/checksec /usr/local/bin/che
-COPY --from=json5-to-json /usr/local/cargo/bin/json5-to-json /usr/local/bin/
+COPY --from=j5j /usr/local/bin/j5j /usr/local/bin/
 COPY --from=just /usr/local/bin/just /usr/local/bin/
 COPY --from=k8s /usr/local/bin/helm /usr/local/bin/
 COPY --from=k8s /usr/local/bin/helm-docs /usr/local/bin/
@@ -189,6 +198,7 @@ COPY --from=k8s /usr/local/bin/kubectl /usr/local/bin/
 COPY --from=protoc /usr/local/bin/protoc /usr/local/bin/
 COPY --from=protoc /usr/local/include/google /usr/local/include/google
 COPY --from=shellcheck /usr/local/bin/shellcheck /usr/local/bin/
+COPY --from=step /usr/bin/step-cli /usr/local/bin/step
 COPY --from=yq /usr/local/bin/yq /usr/local/bin/
 COPY bin/action-dev-check /usr/local/bin/
 ENV PROTOC_NO_VENDOR=1
@@ -202,6 +212,7 @@ ENV PROTOC_INCLUDE=/usr/local/include
 FROM docker.io/debian:bullseye as runtime
 RUN apt update && apt upgrade -y --autoremove \
     && apt install -y \
+        binutils-x86-64-linux-gnu \
         clang curl \
         cmake \
         file \
@@ -210,6 +221,7 @@ RUN apt update && apt upgrade -y --autoremove \
         libssl-dev \
         locales \
         lsb-release \
+        musl-tools \
         pkg-config \
         sudo \
         time \
@@ -226,6 +238,7 @@ RUN groupadd --gid=1000 code \
 # Copy node utilities first, because the bin directory include symlinks that we want to preserve.
 COPY --from=node /usr/local/man/man1/node.1 /usr/local/man/man1/
 COPY --from=node /usr/local/include/node /usr/local/include/node
+COPY --from=node /opt/ /opt/
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 COPY --from=node /usr/local/bin/ /usr/local/bin/
 

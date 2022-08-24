@@ -5,18 +5,18 @@
 
 set -euo pipefail
 
-IMAGE=$(json5-to-json <.devcontainer/devcontainer.json |jq -r '.image')
+IMAGE=$(j5j .devcontainer/devcontainer.json |jq -r '.image')
 
 check_image() {
     if [ "$1" != "$IMAGE" ]; then
         # Report all line numbers with the unexpected image.
-        for n in $(grep -nF "$1" "$2" | cut -d: -f1) ; do
+        while IFS= read -r n ; do
             if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
                 echo "::error file=${2},line=${n}::Expected image '${IMAGE}'; found '${1}'">&2
             else
                 echo "${2}:${n}: Expected image '${IMAGE}'; found '${1}'" >&2
             fi
-        done
+        done < <(grep -nF "$1" "$2" | cut -d: -f1)
         return 1
     fi
 }
@@ -40,14 +40,13 @@ fi
 # Check actions for devcontainer images
 if [ -d .github/actions ]; then
     while IFS= read -r f ; do
-        for i in $(awk 'toupper($1) ~ "FROM" { print $2 }' "$f" \
-                    | sed -Ene 's,(ghcr\.io/linkerd/dev:v[0-9]+).*,\1,p')
-        do
+        while IFS= read -r i ; do
             if ! check_image "$i" "$f" ; then
                 EX=$((EX+1))
                 break
             fi
-        done
+        done < <(awk 'toupper($1) ~ "FROM" { print $2 }' "$f" \
+                    | sed -Ene 's,(ghcr\.io/linkerd/dev:v[0-9]+).*,\1,p')
     done < <(find .github/actions -name Dockerfile\*)
 fi
 
