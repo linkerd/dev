@@ -22,3 +22,6 @@
 [submodule "k8s-gateway-api-rs"]
 	path = k8s-gateway-api-rs
 	url = git@github.com:linkerd/k8s-gateway-api-rs
+[submodule "website"]
+	path = website
+	url = git@github.com:linkerd/website
