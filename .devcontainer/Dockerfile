@@ -182,6 +182,8 @@ FROM base as step
 RUN scurl -O https://dl.step.sm/gh-release/cli/docs-cli-install/v0.21.0/step-cli_0.21.0_amd64.deb \
     && dpkg -i step-cli_0.21.0_amd64.deb
 
+FROM ghcr.io/olix0r/hokay:v0.2.2 as hokay
+
 ##
 ## Tools: Everything needed for a development environment, minus non-root settings.
 ##
@@ -189,6 +191,7 @@ RUN scurl -O https://dl.step.sm/gh-release/cli/docs-cli-install/v0.21.0/step-cli
 FROM base as tools
 COPY --from=actionlint /usr/local/bin/actionlint /usr/local/bin/
 COPY --from=checksec /usr/local/bin/checksec /usr/local/bin/che
+COPY --from=hokay /hokay /usr/local/bin/
 COPY --from=j5j /usr/local/bin/j5j /usr/local/bin/
 COPY --from=just /usr/local/bin/just /usr/local/bin/
 COPY --from=k8s /usr/local/bin/helm /usr/local/bin/
@@ -210,21 +213,29 @@ ENV PROTOC_INCLUDE=/usr/local/include
 ##
 
 FROM docker.io/debian:bullseye as runtime
-RUN apt update && apt upgrade -y --autoremove \
-    && apt install -y \
+RUN export DEBIAN_FRONTEND=noninteractive ; \
+    apt-get update \
+    && apt-get upgrade -y --autoremove \
+    && apt-get install -y \
+        apt-file \
         binutils-x86-64-linux-gnu \
-        clang curl \
+        clang \
         cmake \
+        curl \
+        dnsutils \
         file \
+        iproute2 \
         jo \
         jq \
         libssl-dev \
         locales \
         lsb-release \
+        netcat \
         musl-tools \
         pkg-config \
         sudo \
         time \
+        tshark \
         unzip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 RUN sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen \
