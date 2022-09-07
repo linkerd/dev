@@ -95,7 +95,7 @@ ENV PROTOC_INCLUDE=/usr/local/include
 ## Go image
 ##
 
-FROM docker.io/golang:1.18.5 as go
+FROM docker.io/golang:1.19.1 as go
 RUN apt update && apt upgrade -y --autoremove \
     && apt install -y \
         curl \
