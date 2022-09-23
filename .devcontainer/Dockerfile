@@ -61,7 +61,7 @@ ARG CARGO_TARPAULIN_VERSION=0.20.1
 RUN url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAULIN_VERSION}/cargo-tarpaulin-${CARGO_TARPAULIN_VERSION}-travis.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin cargo-tarpaulin
 
-FROM docker.io/rust:1.63.0-slim-bullseye as rust
+FROM docker.io/rust:1.64.0-slim-bullseye as rust
 RUN rustup component add clippy rustfmt
 RUN rustup target add x86_64-unknown-linux-musl
 RUN apt update && apt upgrade -y --autoremove \
