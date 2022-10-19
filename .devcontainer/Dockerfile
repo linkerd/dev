@@ -174,7 +174,7 @@ ARG J5J_VERSION=v0.2.0
 RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin j5j
 
-FROM docker.io/node:16-bullseye-slim as node
+FROM docker.io/node:19-bullseye-slim as node
 ARG MARKDOWNLINT_VERSION=0.5.1
 RUN npm install "markdownlint-cli2@${MARKDOWNLINT_VERSION}" --global
 
