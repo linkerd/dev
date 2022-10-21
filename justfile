@@ -12,7 +12,7 @@ devcontainer-image := "ghcr.io/linkerd/dev"
 devcontainer-build tag:
     #!/usr/bin/env bash
     set -euo pipefail
-    for tgt in tools go rust runtime ; do
+    for tgt in tools go rust rust-cross runtime ; do
         just devcontainer-build-mode={{ devcontainer-build-mode }} \
             _devcontainer-build {{ tag }} "${tgt}"
     done
