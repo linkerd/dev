@@ -1,27 +1,27 @@
 [submodule "linkerd2"]
-	path = linkerd2
+	path = repos/linkerd2
 	url = git@github.com:linkerd/linkerd2
 [submodule "linkerd2-proxy"]
-	path = linkerd2-proxy
+	path = repos/linkerd2-proxy
 	url = git@github.com:linkerd/linkerd2-proxy
 [submodule "linkerd2-proxy-init"]
-	path = linkerd2-proxy-init
+	path = repos/linkerd2-proxy-init
 	url = git@github.com:linkerd/linkerd2-proxy-init
 [submodule "linkerd-await"]
-	path = linkerd-await
+	path = repos/linkerd-await
 	url = git@github.com:linkerd/linkerd-await
 [submodule "kubert"]
-	path = kubert
+	path = repos/kubert
 	url = git@github.com:olix0r/kubert
 [submodule "linkerd-failover"]
-	path = linkerd-failover
+	path = repos/linkerd-failover
 	url = git@github.com:linkerd/linkerd-failover
 [submodule "linkerd2-proxy-api"]
-	path = linkerd2-proxy-api
+	path = repos/linkerd2-proxy-api
 	url = git@github.com:linkerd/linkerd2-proxy-api
 [submodule "k8s-gateway-api-rs"]
-	path = k8s-gateway-api-rs
+	path = repos/k8s-gateway-api-rs
 	url = git@github.com:linkerd/k8s-gateway-api-rs
 [submodule "website"]
-	path = website
+	path = repos/website
 	url = git@github.com:linkerd/website

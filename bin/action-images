@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+# List all container images used in Github workflows configurations and in
+# action Dockerfiles.
+
+set -euo pipefail
+shopt -s nullglob
+
+workflows=( .github/workflows/* )
+if (( ${#workflows[@]} )); then
+    yq -o=json -I=0 \
+        '.jobs.* | .container | select(.) | (.image // .) | {"image": ., "file": filename, "line": line}' \
+        "${workflows[@]}" \
+      | jq -r '.file + ":" + (.line | tostring) + " " + .image'
+fi
+
+dockerfiles=( .github/actions/*/Dockerfile )
+if (( ${#dockerfiles[@]} )); then
+    awk 'toupper($1) ~ "FROM" { printf "%s:%d %s\n", FILENAME, NR, $2 }' \
+        "${dockerfiles[@]}"
+fi

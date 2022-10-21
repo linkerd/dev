@@ -1,74 +1,38 @@
-# See https://just.systems/man/en
+version := ''
+image := 'ghcr.io/linkerd/dev'
+_tag :=  if version != '' { "--tag=" + image + ':' + version } else { "" }
 
-lint: md-lint sh-lint action-lint action-dev-check
+targets := 'tools go rust rust-cross runtime'
 
-##
-## Devcontainer
-##
+push := 'false'
+output := if push == 'true' { "type=registry" } else { "type=image" }
 
-devcontainer-build-mode := "load"
-devcontainer-image := "ghcr.io/linkerd/dev"
+export DOCKER_PROGRESS := 'auto'
 
-devcontainer-build tag:
-    #!/usr/bin/env bash
+build:
+   #!/usr/bin/env bash
     set -euo pipefail
-    for tgt in tools go rust rust-cross runtime ; do
-        just devcontainer-build-mode={{ devcontainer-build-mode }} \
-            _devcontainer-build {{ tag }} "${tgt}"
+    for tgt in {{ targets }} ; do
+        just output='{{ output }}' \
+             image='{{ image }}' \
+             version='{{ version }}' \
+            _target "$tgt"
     done
 
-_devcontainer-build tag target='':
-    docker buildx build .devcontainer \
-        --progress=plain \
-        --tag='{{ devcontainer-image }}:{{ tag }}{{ if target != "runtime" { "-" + target }  else { "" } }}' \
+_target target:
+    @-just output='{{ output }}' image='{{ image }}' _build \
         --target='{{ target }}' \
-        --{{ if devcontainer-build-mode == "push" { "push" } else { "load" } }}
+        {{ if version == "" { "" } else { "--tag=" + image + ':' + version + if target == "runtime" { "" } else { "-" + target } } }}
 
-##
-## GitHub Actions
-##
+# Build the devcontainer image
+_build *args='':
+    docker buildx build . {{ _tag }} \
+        --progress='{{ DOCKER_PROGRESS }}' \
+        --output='{{ output }}' \
+        {{ args }}
 
-# Format actionlint output for Github Actions if running in CI.
-_actionlint-fmt := if env_var_or_default("GITHUB_ACTIONS", "") != "true" { "" } else {
-  '{{range $err := .}}::error file={{$err.Filepath}},line={{$err.Line}},col={{$err.Column}}::{{$err.Message}}%0A```%0A{{replace $err.Snippet "\\n" "%0A"}}%0A```\n{{end}}'
-}
-
-# Lints all GitHub Actions workflows
-action-lint:
-    actionlint \
-        {{ if _actionlint-fmt != '' { "-format '" + _actionlint-fmt + "'" } else { "" } }} \
-        .github/workflows/*.yml
-
-# Ensure all devcontainer versions are in sync
-action-dev-check:
-    .devcontainer/bin/action-dev-check
-
-##
-## Other tools...
-##
-
-md-lint:
-    markdownlint-cli2 '**/*.md' '!**/node_modules' '!**/target'
+md-lint *patterns="'**/*.md' '!repos/**'":
+    bin/just-md lint {{ patterns }}
 
 sh-lint:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    files=$(while IFS= read -r f ; do
-        if [ "$(file -b --mime-type "$f")" = text/x-shellscript ]; then echo "$f"; fi
-    done < <(find .devcontainer -type f ! \( -path ./.git/\* -or -path \*/target/\* \)) | xargs)
-    echo "shellcheck $files" >&2
-    shellcheck $files
-
-##
-## Git
-##
-
-# Display the git history minus Dependabot updates
-history *paths='.':
-    @-git log --oneline --graph --invert-grep --author="dependabot" -- {{ paths }}
-
-# Display the history of Dependabot changes
-history-dependabot *paths='.':
-    @-git log --oneline --graph --author="dependabot" -- {{ paths }}
-
-# vim: set ft=make :
+    bin/just-sh lint ':!repos'

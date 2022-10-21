@@ -1,0 +1,5 @@
+#!/usr/bin/env -S just --working-directory . --justfile
+
+# Lint markdown files with the provided patterns
+lint *patterns="'**/*.md' '!**/node_modules' '!**/target'":
+    markdownlint-cli2 {{ patterns }}

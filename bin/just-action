@@ -1,0 +1,39 @@
+#!/usr/bin/env -S just --working-directory . --justfile
+
+all: lint check-dev-images
+
+# Format actionlint output for Github Actions if running in CI.
+_actionlint-fmt := if env_var_or_default("GITHUB_ACTIONS", "") != "true" { "" } else {
+  '{{range $err := .}}::error file={{$err.Filepath}},line={{$err.Line}},col={{$err.Column}}::{{$err.Message}}%0A```%0A{{replace $err.Snippet "\\n" "%0A"}}%0A```\n{{end}}'
+}
+
+# Lints all GitHub Actions workflows
+lint *paths='.github/workflows/*.yml':
+    actionlint \
+        {{ if _actionlint-fmt != '' { "-format '" + _actionlint-fmt + "'" } else { "" } }} \
+        {{ paths }}
+
+# Ensure the all github workflows and actions reference the same devcontainer version as that in .devcontainer.json.
+check-dev-images:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    IMAGE=$(j5j .devcontainer/devcontainer.json |jq -r '.image')
+    EX=0
+    while IFS= read filelineimgtag ; do
+        fileline="${filelineimgtag%% *}"
+        imgtag="${filelineimgtag##* }"
+        file="${fileline%%:*}"
+        line="${fileline##*:}"
+        img="${imgtag%%:*}"
+        tag="${imgtag##*:}"
+        version="${tag%%-*}"
+        if [ "$img" = 'ghcr.io/linkerd/dev' ] && [ "$img:$version" != "$IMAGE" ]; then
+            if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+                echo "::error file=${file},line=${line}::Expected image '$IMAGE'; found '${imgtag}'" >&2
+            else
+                echo "${file}:${line}: Expected image '$IMAGE'; found '${imgtag}'" >&2
+            fi
+            EX=$(( EX+1 ))
+        fi
+    done < <({{ justfile_directory() / "action-images" }})
+    exit $EX
