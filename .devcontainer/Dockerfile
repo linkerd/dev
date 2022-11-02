@@ -135,7 +135,7 @@ ENV CROSS_DOCKER_IN_DOCKER=true
 ## Go image
 ##
 
-FROM docker.io/golang:1.18.5 as go
+FROM docker.io/golang:1.19.3 as go
 RUN apt update && apt upgrade -y --autoremove \
     && apt install -y \
         curl \
