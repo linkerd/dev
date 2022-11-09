@@ -26,7 +26,7 @@ export K3D_CREATE_FLAGS := env_var_or_default("K3D_CREATE_FLAGS", "")
 
 _kubectl := "kubectl --context=k3d-" + K3D_CLUSTER_NAME
 
-# Print information the cluster's detailed status.
+# Print the cluster's detailed status.
 info:
     k3d cluster list {{ K3D_CLUSTER_NAME }} -o yaml | yq '.[]'
 
