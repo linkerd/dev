@@ -1,0 +1,15 @@
+#!/usr/bin/env -S just --working-directory . --justfile
+
+n := "40"
+_limit := if n == '' { "cat" } else { "head -n " + n }
+
+author := 'human'
+_author := if author == 'human' {
+    "--invert-grep --author='dependabot'"
+} else {
+    "--author=" + author
+}
+
+# Display the history of Dependabot changes
+log *paths='.':
+    @-git log --oneline --graph {{ _author }} -- {{ paths }} | {{ _limit }}

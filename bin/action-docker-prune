@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [ $# -ne 1 ]; then
+    echo "usage: $0 cache-dir" >&2
+    exit 1
+fi
+dir="$1"
+
+if ! [ -f "$dir/index.json" ]; then
+    echo "Not found: $dir/index.json" >&2
+    exit 1
+fi
+
+# Delete all files under the buildkit blob directory that are not referred
+# to any longer in the cache manifest file
+
+manifest_sha=$(jq -r .manifests[0].digest < "$dir/index.json")
+manifest=${manifest_sha#"sha256:"}
+files=("$manifest")
+while IFS= read -r f; do
+    files+=("$f")
+done < <(jq -r '.manifests[].digest | sub("^sha256:"; "")' < "$dir/blobs/sha256/$manifest")
+
+for file in "$dir"/blobs/sha256/*; do
+    for name in "${files[@]}"; do
+        if [[ "${file##*/}" == "$name" ]]; then
+            rm -f "$file"
+            echo "deleted: $name"
+            break;
+        fi
+    done
+done

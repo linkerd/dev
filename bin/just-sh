@@ -1,0 +1,44 @@
+#!/usr/bin/env -S just --working-directory . --justfile
+
+set ignore-comments := true
+
+_just := just_executable() + " --working-directory . --justfile " + justfile()
+
+export SHELL_SOURCE_PATH := env_var_or_default("SHELL_SOURCE_PATH", "")
+
+files := ```
+    git ls-files \
+        | xargs file --mime-type -F '' \
+        | awk '$2 == "text/x-shellscript" { print $1; }'
+```
+
+lint: check shebang
+
+check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -z '{{ files }}' ]; then
+        echo "No shell scripts found" >&2
+        exit 0
+    fi
+    {{ _just }} _check {{ files }}
+
+_check *args:
+    shellcheck \
+        {{ if SHELL_SOURCE_PATH != '' { '--source-path=' + SHELL_SOURCE_PATH } else { '' } }} \
+        {{ args }}
+
+shebang:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for file in {{ files }}; do
+        shebang=$(head -n 1 "$file")
+        if ! [[ "$shebang" =~ ^\#\!(/bin/sh|/usr/bin/env bash) ]] ; then
+            if [ "${GITHUB_ACTIONS:-}" = 'true' ]; then
+                echo "::error file=${file},line=1,col=1::Invalid shebang: $shebang" >&2
+            else
+                echo "ERROR: Invalid shebang found in $file: $shebang" >&2
+            fi
+            exit 1
+        fi
+    done

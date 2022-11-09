@@ -20,6 +20,7 @@ FROM base as just
 ARG JUST_VERSION=1.6.0
 RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin just
+COPY bin/* /usr/local/bin/
 
 FROM base as protoc
 ARG PROTOC_VERSION=v3.20.3
@@ -62,7 +63,7 @@ RUN url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_D
     scurl "$url" | tar zvxf - --strip-components=1 -C /usr/local/bin "cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl/cargo-deny"
 
 FROM base as cargo-nextest
-ARG NEXTEST_VERSION=0.9.39
+ARG NEXTEST_VERSION=0.9.42
 RUN url="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-${NEXTEST_VERSION}/cargo-nextest-${NEXTEST_VERSION}-x86_64-unknown-linux-gnu.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin cargo-nextest
 
@@ -85,6 +86,7 @@ RUN apt update && apt upgrade -y --autoremove \
         jo \
         jq \
         libssl-dev \
+        llvm \
         musl-tools \
         pkg-config \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -93,7 +95,7 @@ COPY --from=cargo-deny /usr/local/bin/cargo-deny /usr/local/cargo/bin/
 COPY --from=cargo-nextest /usr/local/bin/cargo-nextest /usr/local/cargo/bin/
 COPY --from=cargo-tarpaulin /usr/local/bin/cargo-tarpaulin /usr/local/cargo/bin/
 COPY --from=checksec /usr/local/bin/checksec /usr/local/bin/checksec
-COPY --from=just /usr/local/bin/just /usr/local/bin/
+COPY --from=just /usr/local/bin/* /usr/local/bin/
 COPY --from=protoc /usr/local/bin/protoc /usr/local/bin/
 COPY --from=protoc /usr/local/include/google /usr/local/include/google
 COPY --from=yq /usr/local/bin/yq /usr/local/bin/
@@ -109,12 +111,13 @@ FROM rust as rust-cross
 # 2. The container-based `cross` tool for other platforms (especially MUSL)
 RUN rustup target add \
         aarch64-unknown-linux-gnu \
-        armv7-unknown-linux-gnueabihf
+        aarch64-unknown-linux-musl \
+        armv7-unknown-linux-gnueabihf \
+        armv7-unknown-linux-musleabihf
 RUN apt update && apt upgrade -y --autoremove \
     && apt install -y \
         binutils-aarch64-linux-gnu \
         binutils-arm-linux-gnueabihf \
-        docker.io \
         g++-aarch64-linux-gnu \
         g++-arm-linux-gnueabihf \
         gcc-aarch64-linux-gnu \
@@ -135,7 +138,7 @@ ENV CROSS_DOCKER_IN_DOCKER=true
 ## Go image
 ##
 
-FROM docker.io/golang:1.18.5 as go
+FROM docker.io/golang:1.18.7 as go
 RUN apt update && apt upgrade -y --autoremove \
     && apt install -y \
         curl \
@@ -158,12 +161,12 @@ RUN for p in \
     google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2 \
     google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 \
     gotest.tools/gotestsum@v0.4.2 \
-    ; do go install -mod=readonly "$p" ; done \
+    ; do go install "$p" ; done \
     && rm -rf /go/pkg/* /go/src/*
 COPY bin/scurl /usr/local/bin/scurl
 COPY --from=protoc /usr/local/bin/protoc /usr/local/bin/
 COPY --from=protoc /usr/local/include/google /usr/local/include/google
-COPY --from=just /usr/local/bin/just /usr/local/bin/
+COPY --from=just /usr/local/bin/* /usr/local/bin/
 ENV PROTOC_NO_VENDOR=1
 ENV PROTOC=/usr/local/bin/protoc
 ENV PROTOC_INCLUDE=/usr/local/include
@@ -228,7 +231,7 @@ COPY --from=actionlint /usr/local/bin/actionlint /usr/local/bin/
 COPY --from=checksec /usr/local/bin/checksec /usr/local/bin/checksec
 COPY --from=hokay /hokay /usr/local/bin/
 COPY --from=j5j /usr/local/bin/j5j /usr/local/bin/
-COPY --from=just /usr/local/bin/just /usr/local/bin/
+COPY --from=just /usr/local/bin/* /usr/local/bin/
 COPY --from=k8s /usr/local/bin/helm /usr/local/bin/
 COPY --from=k8s /usr/local/bin/helm-docs /usr/local/bin/
 COPY --from=k8s /usr/local/bin/k3d /usr/local/bin/
@@ -238,7 +241,7 @@ COPY --from=protoc /usr/local/include/google /usr/local/include/google
 COPY --from=shellcheck /usr/local/bin/shellcheck /usr/local/bin/
 COPY --from=step /usr/bin/step-cli /usr/local/bin/step
 COPY --from=yq /usr/local/bin/yq /usr/local/bin/
-COPY bin/action-dev-check /usr/local/bin/
+COPY bin/* /usr/local/bin/
 ENV PROTOC_NO_VENDOR=1
 ENV PROTOC=/usr/local/bin/protoc
 ENV PROTOC_INCLUDE=/usr/local/include
@@ -254,14 +257,22 @@ RUN export DEBIAN_FRONTEND=noninteractive ; \
     && apt-get install -y \
         apt-file \
         binutils-x86-64-linux-gnu \
+        binutils-aarch64-linux-gnu \
+        binutils-arm-linux-gnueabihf \
         clang \
         cmake \
         curl \
         dnsutils \
         file \
+        g++-aarch64-linux-gnu \
+        g++-arm-linux-gnueabihf \
+        gcc-aarch64-linux-gnu \
+        gcc-arm-linux-gnueabihf \
         iproute2 \
         jo \
         jq \
+        libc6-dev-arm64-cross \
+        libc6-dev-armhf-cross \
         libssl-dev \
         locales \
         lsb-release \
@@ -301,6 +312,12 @@ COPY --from=rust $RUSTUP_HOME $RUSTUP_HOME
 RUN find "$CARGO_HOME" "$RUSTUP_HOME" -type d -exec chmod 777 '{}' +
 ENV PATH=$CARGO_HOME/bin:$PATH
 RUN rustup component add rust-analysis rust-std
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
+    CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc \
+    CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++
+ENV CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc \
+    CC_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc \
+    CXX_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-g++
 
 COPY --from=tools /usr/local/bin/* /usr/local/bin/
 
