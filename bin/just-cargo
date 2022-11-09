@@ -29,8 +29,8 @@ _clang := 'clang-' + _llvm-version
 _strip := 'llvm-strip-' + _llvm-version
 _ar := 'llvm-ar-' + _llvm-version
 
-# Cargo-culted from *ring*
-_rustflags-self-contained := "-Clink-self-contained=yes -Clinker=rust-lld"
+# Use LLD to statically link binaries (when building for musl).
+_rustflags-self-contained := "-Clink-self-contained=yes -Clinker=rust-lld -Clink-arg=-fuse-ld=lld -Clink-arg=-Wl,--no-rosegment"
 
 # linux/arm64 + gnu
 export AR_aarch64_unknown_linux_gnu := _ar
