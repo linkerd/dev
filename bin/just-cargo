@@ -71,36 +71,32 @@ export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS := _rustflags-self-conta
 
 all: fetch clippy test
 
-fetch:
-    {{ CARGO }} fetch --locked
+fetch *args='':
+    {{ CARGO }} fetch {{ args }}
 
 clean:
     {{ CARGO }} clean
 
 build *args: _target-installed
-    {{ CARGO }} build --frozen {{ _release }} {{ _target }} {{ args }} {{ _fmt }}
+    {{ CARGO }} build {{ _release }} {{ _target }} {{ args }} {{ _fmt }}
 
-fmt:
-    {{ CARGO }} fmt
-
-# Fails if the code does not match the expected format (via rustfmt).
-check-fmt:
-    {{ CARGO }} fmt -- --check
+fmt *args='':
+    {{ CARGO }} fmt {{ args }}
 
 check *args='': _target-installed
-    {{ CARGO }} check --frozen --all-targets --workspace {{ _release }} {{ _target }} {{ args }} {{ _fmt }}
+    {{ CARGO }} check {{ _release }} {{ _target }} {{ args }} {{ _fmt }}
 
 clippy *args='': _target-installed
-    {{ CARGO }} clippy --frozen --all-targets --workspace {{ _release }} {{ _target }} {{ args }} {{ _fmt }}
+    {{ CARGO }} clippy {{ _release }} {{ _target }} {{ args }} {{ _fmt }}
 
 doc *args='':
-    {{ CARGO }} doc --no-deps --frozen {{ args }} {{ _fmt }}
+    {{ CARGO }} doc {{ _release }} {{ _target }} {{ args }} {{ _fmt }}
 
 test-build *args='': _target-installed
-    {{ CARGO }} test --no-run --frozen {{ _release }} {{ _target }} {{ args }} {{ _fmt }}
+    {{ CARGO }} test --no-run {{ _release }} {{ _target }} {{ args }} {{ _fmt }}
 
 test *args='': _target-installed
-    {{ CARGO }} nextest run --frozen {{ _release }} {{ _target }} {{ args }}
+    {{ CARGO }} nextest run {{ _release }} {{ _target }} {{ args }}
 
 # Print the version of the named crate. E.g. `version = "1.2.3"` as "v1.2.3"
 crate-version crate:
