@@ -87,7 +87,7 @@ some common build and testing tasks. Most of these scripts are implemented with
 [`just`](https://just.systems/). Just is a tool for writing build and test
 'recipes'. These recipes may be invoked in the course of development or from
 
-- **just-action** lints for GitHub Actions workflows
+- **just-dev** lints for Devcontainer configuration and GitHub Actions workflows
 - **just-cargo** helpers for running cargo, especially in CI
 - **just-k3d** helpers for interacting with k3d clusters used for testing
 - **just-md** lints markdown in a repository

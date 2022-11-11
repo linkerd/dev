@@ -23,12 +23,20 @@ while IFS= read -r f; do
     files+=("$f")
 done < <(jq -r '.manifests[].digest | sub("^sha256:"; "")' < "$dir/blobs/sha256/$manifest")
 
-for file in "$dir"/blobs/sha256/*; do
-    for name in "${files[@]}"; do
-        if [[ "${file##*/}" == "$name" ]]; then
-            rm -f "$file"
-            echo "deleted: $name"
-            break;
+function is_referenced() {
+    local name="$1"
+    for n in "${files[@]}"; do
+        if [ "$n" = "$name" ]; then
+            return 0
         fi
     done
+    return 1
+}
+
+for file in "$dir"/blobs/sha256/*; do
+    name="${file##*/}"
+    if ! is_referenced "$name" ; then
+        rm -f "$file"
+        echo "deleted: $name"
+    fi
 done
