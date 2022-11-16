@@ -11,11 +11,15 @@ if (( ${#workflows[@]} )); then
     yq -o=json -I=0 \
         '.jobs.* | .container | select(.) | (.image // .) | {"image": ., "file": filename, "line": line}' \
         "${workflows[@]}" \
-      | jq -r '.file + ":" + (.line | tostring) + " " + .image'
+      | jq -r '.file + ":" + (.line | tostring) + " " + (.image | ltrimstr("docker://"))'
+    yq -o json -I=0 \
+        '.jobs.* | .steps[].uses | select(.)  | {"action": ., "file": filename, "line": line}' \
+        "${workflows[@]}" \
+      | jq -r 'select(.action | startswith("docker://")) | .file + ":" + (.line | tostring) + " " + (.action | ltrimstr("docker://"))'
 fi
 
 dockerfiles=( .github/actions/*/Dockerfile )
 if (( ${#dockerfiles[@]} )); then
-    awk 'toupper($1) ~ "FROM" { printf "%s:%d %s\n", FILENAME, NR, $2 }' \
+    awk 'toupper($1) ~ "FROM" { gsub(/^docker:\/\//, "", $2) ; printf "%s:%d %s\n", FILENAME, NR, $2 }' \
         "${dockerfiles[@]}"
 fi
