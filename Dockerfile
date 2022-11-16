@@ -21,11 +21,16 @@ ARG YQ_VERSION=v4.25.1
 RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" ; \
     scurl -o /usr/local/bin/yq "$url" && chmod +x /usr/local/bin/yq
 
+FROM base as just
+ARG JUST_VERSION=1.8.0
+RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
+    scurl "$url" | tar zvxf - -C /usr/local/bin just
+
 ##
 ## Kubernetes tools
 ##
 
-FROM base as k8s
+FROM just as k8s
 
 ARG KUBECTL_VERSION=v1.25.3
 RUN url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" ; \
@@ -51,11 +56,6 @@ RUN scurl -O https://dl.step.sm/gh-release/cli/docs-cli-install/v0.21.0/step-cli
 ##
 ## Action: Tools for linting repo actions
 ##
-
-FROM base as just
-ARG JUST_VERSION=1.8.0
-RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
-    scurl "$url" | tar zvxf - -C /usr/local/bin just
 
 FROM k8s as action
 
@@ -83,8 +83,6 @@ ARG ACTIONLINT_VERSION=v1.6.21
 RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin actionlint
 COPY --link bin/action-* bin/just-dev /usr/local/bin/
-
-COPY --link --from=just /usr/local/bin/* /usr/local/bin/
 ENTRYPOINT ["/usr/local/bin/just-dev"]
 
 ##
