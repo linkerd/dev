@@ -21,43 +21,6 @@ ARG YQ_VERSION=v4.25.1
 RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" ; \
     scurl -o /usr/local/bin/yq "$url" && chmod +x /usr/local/bin/yq
 
-FROM base as just
-ARG JUST_VERSION=1.8.0
-RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
-    scurl "$url" | tar zvxf - -C /usr/local/bin just
-
-##
-## Action: Tools for linting repo actions
-##
-
-FROM just as action
-
-RUN export DEBIAN_FRONTEND=noninteractive \
-    && apt-get update \
-    && apt-get upgrade -y --autoremove \
-    && apt-get install -y gnupg \
-    && ( . /etc/os-release \
-        && scurl https://download.docker.com/linux/${ID}/gpg | gpg --dearmor > /usr/share/keyrings/docker-archive-keyring.gpg \
-        && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/${ID} ${VERSION_CODENAME} stable" > /etc/apt/sources.list.d/docker.list ) \
-    && apt-get update \
-    && apt-get install -y docker-ce-cli \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-ARG SHELLCHECK_VERSION=v0.8.0
-RUN url="https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" ; \
-    scurl "$url" | tar xJvf - --strip-components=1 -C /usr/local/bin "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
-COPY --link bin/just-sh /usr/local/bin/
-
-ARG J5J_VERSION=v0.2.0
-RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
-    scurl "$url" | tar zvxf - -C /usr/local/bin j5j
-
-ARG ACTIONLINT_VERSION=v1.6.21
-RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" ; \
-    scurl "$url" | tar xzvf - -C /usr/local/bin actionlint
-COPY --link bin/action-* bin/just-dev /usr/local/bin/
-ENTRYPOINT ["/usr/local/bin/just-dev"]
-
 ##
 ## Kubernetes tools
 ##
@@ -84,6 +47,45 @@ RUN url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERS
 FROM base as step
 RUN scurl -O https://dl.step.sm/gh-release/cli/docs-cli-install/v0.21.0/step-cli_0.21.0_amd64.deb \
     && dpkg -i step-cli_0.21.0_amd64.deb
+
+##
+## Action: Tools for linting repo actions
+##
+
+FROM base as just
+ARG JUST_VERSION=1.8.0
+RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
+    scurl "$url" | tar zvxf - -C /usr/local/bin just
+
+FROM k8s as action
+
+RUN export DEBIAN_FRONTEND=noninteractive \
+    && apt-get update \
+    && apt-get upgrade -y --autoremove \
+    && apt-get install -y gnupg \
+    && ( . /etc/os-release \
+        && scurl https://download.docker.com/linux/${ID}/gpg | gpg --dearmor > /usr/share/keyrings/docker-archive-keyring.gpg \
+        && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/${ID} ${VERSION_CODENAME} stable" > /etc/apt/sources.list.d/docker.list ) \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+ARG SHELLCHECK_VERSION=v0.8.0
+RUN url="https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" ; \
+    scurl "$url" | tar xJvf - --strip-components=1 -C /usr/local/bin "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
+COPY --link bin/just-sh /usr/local/bin/
+
+ARG J5J_VERSION=v0.2.0
+RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
+    scurl "$url" | tar zvxf - -C /usr/local/bin j5j
+
+ARG ACTIONLINT_VERSION=v1.6.21
+RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" ; \
+    scurl "$url" | tar xzvf - -C /usr/local/bin actionlint
+COPY --link bin/action-* bin/just-dev /usr/local/bin/
+
+COPY --link --from=just /usr/local/bin/* /usr/local/bin/
+ENTRYPOINT ["/usr/local/bin/just-dev"]
 
 ##
 ## Protobuf
