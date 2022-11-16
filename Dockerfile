@@ -32,9 +32,15 @@ RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${
 
 FROM just as action
 
-RUN export DEBIAN_FRONTEND=noninteractive ; \
-    apt-get update && apt-get upgrade -y --autoremove \
-    && apt-get install -y docker.io \
+RUN export DEBIAN_FRONTEND=noninteractive \
+    && apt-get update \
+    && apt-get upgrade -y --autoremove \
+    && apt-get install -y gnupg \
+    && ( . /etc/os-release \
+        && scurl https://download.docker.com/linux/${ID}/gpg | gpg --dearmor > /usr/share/keyrings/docker-archive-keyring.gpg \
+        && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/${ID} ${VERSION_CODENAME} stable" > /etc/apt/sources.list.d/docker.list ) \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ARG SHELLCHECK_VERSION=v0.8.0
