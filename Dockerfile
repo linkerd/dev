@@ -79,6 +79,11 @@ ARG J5J_VERSION=v0.2.0
 RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin j5j
 
+ARG TAPLO_VERSION=v0.8.0
+RUN url="https://github.com/tamasfe/taplo/releases/download/${TAPLO_VERSION#v}/taplo-linux-x86_64.gz" ; \
+    scurl "$url" | gunzip >/usr/local/bin/taplo \
+    && chmod 755 /usr/local/bin/taplo
+
 ARG ACTIONLINT_VERSION=v1.6.21
 RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin actionlint
