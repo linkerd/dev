@@ -70,4 +70,4 @@ pull-action-images:
     done < <({{ justfile_directory() / "action-images" }})
 
 prune-action-cache path:
-    @-{{ justfile_directory() / "action-docker-prune" + " " + path }}
+    @{{ justfile_directory() / "action-docker-prune" + " " + path }}

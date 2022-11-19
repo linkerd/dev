@@ -12,4 +12,4 @@ _author := if author == 'human' {
 
 # Display the history of Dependabot changes
 log *paths='.':
-    @-git log --oneline --graph {{ _author }} -- {{ paths }} | {{ _limit }}
+    @git log --oneline --graph {{ _author }} -- {{ paths }} | {{ _limit }}

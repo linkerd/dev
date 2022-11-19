@@ -27,7 +27,7 @@ build:
     done
 
 _target target='':
-    @-just output='{{ output }}' image='{{ image }}' _build --target='{{ target }}' \
+    @just output='{{ output }}' image='{{ image }}' _build --target='{{ target }}' \
         {{ if version == '' { '' } else { '--tag=' + image + ':' + version + if target == 'runtime' { '' } else { '-' + target } } }}
 
 # Build the devcontainer image
@@ -38,4 +38,4 @@ _build *args='':
         {{ args }}
 
 md-lint *patterns="'**/*.md' '!repos/**'":
-    @-bin/just-md lint {{ patterns }}
+    @bin/just-md lint {{ patterns }}

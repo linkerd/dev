@@ -100,7 +100,7 @@ test *args='': _target-installed
 
 # Print the version of the named crate. E.g. `version = "1.2.3"` as "v1.2.3"
 crate-version crate:
-    @-{{ CARGO }} metadata --format-version=1 \
+    @{{ CARGO }} metadata --format-version=1 \
         | jq -r '.packages[] | select(.name == "{{ crate }}") | "v" + .version' \
         | head -n1
 
