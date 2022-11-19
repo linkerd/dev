@@ -5,6 +5,7 @@ on:
     paths:
       - .devcontainer/actions.json
       - .github/workflows/**
+      - setup-action/action.yml
       - justfile
 
 permissions:
@@ -16,22 +17,49 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - run: docker://ghcr.io/linkerd/dev:v34-action
-        with:
-          args: lint-actions
+      - uses: ./setup-action
+      - run: just-dev lint-actions
 
   check-action-images:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - uses: docker://ghcr.io/linkerd/dev:v34-action
-        with:
-          args: check-action-images
+      - uses: ./setup-action
+      - run: just-dev check-action-images
 
   pull-action-images:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - uses: docker://ghcr.io/linkerd/dev:v34-action
+      - uses: ./setup-action
+      - run: just-dev pull-action-images
+
+  setup-action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+      - uses: ./setup-action
+      - run: which just
+      - run: just --version
+
+  setup-go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+      - uses: ./setup-action
         with:
-          args: pull-action-images
+          action: 'false'
+          go: 'true'
+      - run: which go
+      - run: go version
+
+  setup-rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+      - uses: ./setup-action
+        with:
+          action: 'false'
+          rust: 'true'
+      - run: which cargo
+      - run: cargo version

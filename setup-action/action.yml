@@ -1,0 +1,110 @@
+name: Dev Setup Action
+description: Unpacks
+
+inputs:
+  version:
+    description: Container image version
+    default: v35
+  action:
+    description: If 'true', then basic action utils are installed
+    default: 'true'
+  rust:
+    description: If 'true' then the Rust toolchain will be installed
+  go:
+    description: If 'true' then the Go toolchain will be installed
+
+runs:
+  using: composite
+  steps:
+    - uses: docker/setup-buildx-action@v2
+
+    - name: Extract action utils
+      if: inputs.action == 'true'
+      shell: bash
+      run: |
+        set -xeuo pipefail
+        dir=$(mktemp -d '${{ runner.temp }}/action.XXXXXX')
+        mkdir -p "$dir/build" "$dir/root"
+        (
+          echo 'FROM scratch'
+          echo 'COPY --from=ghcr.io/linkerd/dev:${{ inputs.version }}-action /usr /usr'
+        ) > "$dir"/build/Dockerfile
+        docker buildx build "$dir"/build --output='type=tar' \
+            | tar xf - --directory="$dir/root"
+        echo PATH="$dir/root/usr/bin:$dir/root/usr/local/bin:$PATH" >> "$GITHUB_ENV"
+    - name: Verify action utils
+      if: inputs.action == 'true'
+      shell: bash
+      run: |
+        echo PATH="$PATH"
+        set -xeuo pipefail
+        helm version
+        k3d version
+        kubectl version --output=yaml --client
+        shellcheck --version
+        just-dev --list
+        just-sh --list
+        just-k3d --list
+
+    - name: Extract rust utils
+      if: inputs.rust == 'true'
+      shell: bash
+      run: |
+        set -xeuo pipefail
+        dir=$(mktemp -d '${{ runner.temp }}/action.XXXXXX')
+        mkdir -p "$dir/build" "$dir/root"
+        (
+          echo 'FROM scratch'
+          echo 'COPY --from=ghcr.io/linkerd/dev:${{ inputs.version }}-rust /usr /usr'
+        ) > "$dir"/build/Dockerfile
+        docker buildx build "$dir"/build --output='type=tar' \
+            | tar xf - --directory="$dir/root"
+        (
+          echo CARGO_HOME="$dir/root/usr/local/cargo"
+          echo RUSTUP_HOME="$dir/root/usr/local/rustup"
+          echo PATH="$dir/root/usr/bin:$dir/root/usr/local/bin:$dir/root/usr/local/cargo/bin:$dir/root/usr/local/rustup/bin:$PATH"
+          echo PROTOC_NO_VENDOR=1
+          echo PROTOC="$dir/root/usr/local/bin/protoc"
+          echo PROTOC_INCLUDE="$dir/root/usr/local/include"
+        ) >> "$GITHUB_ENV"
+    - name: Verify rust utils
+      if: inputs.rust == 'true'
+      shell: bash
+      run: |
+        echo CARGO_HOME="$CARGO_HOME"
+        echo RUSTUP_HOME="$RUSTUP_HOME"
+        echo PATH="$PATH"
+        echo PROTOC_NO_VENDOR="$PROTOC_NO_VENDOR"
+        echo PROTOC="$PROTOC"
+        echo PROTOC_INCLUDE="$PROTOC_INCLUDE"
+        set -xeuo pipefail
+        cargo version
+        just-cargo --list
+
+    - name: Extract go utils
+      if: inputs.go == 'true'
+      shell: bash
+      run: |
+        set -xeuo pipefail
+        dir=$(mktemp -d '${{ runner.temp }}/action.XXXXXX')
+        mkdir -p "$dir/build" "$dir/root"
+        (
+          echo 'FROM scratch'
+          echo 'COPY --from=ghcr.io/linkerd/dev:${{ inputs.version }}-go /go /go'
+          echo 'COPY --from=ghcr.io/linkerd/dev:${{ inputs.version }}-go /usr/local /usr/local'
+        ) > "$dir"/build/Dockerfile
+        docker buildx build "$dir"/build --output='type=tar' \
+            | tar xf - --directory="$dir/root"
+        (
+          echo GOPATH="$dir/root/go"
+          echo PATH="$dir/root/go/bin:$dir/root/usr/local/go/bin:$PATH"
+          echo PROTOC="$dir/root/usr/local/bin/protoc"
+          echo PROTOC_INCLUDE="$dir/root/usr/local/include"
+        ) >> "$GITHUB_ENV"
+    - name: Verify go utils
+      if: inputs.go == 'true'
+      shell: bash
+      run: |
+        echo PATH="$PATH"
+        set -xeuo pipefail
+        go version
