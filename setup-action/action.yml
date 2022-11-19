@@ -23,7 +23,7 @@ runs:
       shell: bash
       run: |
         set -xeuo pipefail
-        dir=$(mktemp -d '${{ runner.temp }}/action.XXXXXX')
+        dir=$(mktemp -d '${{ runner.temp }}/action.XXX')
         mkdir -p "$dir/build" "$dir/root"
         (
           echo 'FROM scratch'
@@ -51,7 +51,7 @@ runs:
       shell: bash
       run: |
         set -xeuo pipefail
-        dir=$(mktemp -d '${{ runner.temp }}/action.XXXXXX')
+        dir=$(mktemp -d '${{ runner.temp }}/rust.XXX')
         mkdir -p "$dir/build" "$dir/root"
         (
           echo 'FROM scratch'
@@ -86,7 +86,7 @@ runs:
       shell: bash
       run: |
         set -xeuo pipefail
-        dir=$(mktemp -d '${{ runner.temp }}/action.XXXXXX')
+        dir=$(mktemp -d '${{ runner.temp }}/go.XXX')
         mkdir -p "$dir/build" "$dir/root"
         (
           echo 'FROM scratch'
