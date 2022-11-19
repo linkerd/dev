@@ -62,6 +62,7 @@ runs:
         (
           echo CARGO_HOME="$dir/root/usr/local/cargo"
           echo RUSTUP_HOME="$dir/root/usr/local/rustup"
+          echo LD_LIBRARY_PATH="$dir/root/usr/lib"
           echo PATH="$dir/root/usr/bin:$dir/root/usr/local/bin:$dir/root/usr/local/cargo/bin:$dir/root/usr/local/rustup/bin:$PATH"
           echo PROTOC_NO_VENDOR=1
           echo PROTOC="$dir/root/usr/local/bin/protoc"
