@@ -1,0 +1,39 @@
+name: setup-rust
+description: Sets up a Rust build environment. Requires docker/setup-buildx-action@v2.
+
+inputs:
+  version:
+    description: Container image version
+    default: v35
+
+runs:
+  using: composite
+  steps:
+    - name: Extract rust utils
+      shell: bash
+      run: |
+        set -xeuo pipefail
+        dir=$(mktemp -d '${{ runner.temp }}/rust.XXX')
+        mkdir -p "$dir/build"
+        (
+          echo 'FROM scratch'
+          echo 'COPY --link --from=ghcr.io/linkerd/dev:${{ inputs.version }}-rust /usr /usr'
+        ) > "$dir"/build/Dockerfile
+        docker buildx build "$dir"/build --output='type=tar' \
+            | tar xf - --directory="$dir"
+        (
+          echo CARGO_HOME="$dir/usr/local/cargo"
+          echo RUSTUP_HOME="$dir/usr/local/rustup"
+          echo LD_LIBRARY_PATH="$dir/usr/lib/x86_64-linux-gnu"
+          echo PATH="$dir/usr/bin:$dir/usr/local/bin:$dir/usr/local/cargo/bin:$PATH"
+          echo PROTOC_NO_VENDOR=1
+          echo PROTOC="$dir/usr/local/bin/protoc"
+          echo PROTOC_INCLUDE="$dir/usr/local/include"
+        ) >> "$GITHUB_ENV"
+    - name: Verify rust utils
+      shell: bash
+      run: |
+        set -xeuo pipefail
+        env | sort
+        cargo version
+        just-cargo --list

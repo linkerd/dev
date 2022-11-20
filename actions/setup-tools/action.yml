@@ -1,0 +1,33 @@
+name: setup-tools
+description: Unpacks dev tools. Requires docker/setup-buildx-action@v2.
+
+inputs:
+  version:
+    description: Container image version
+    default: v35
+
+runs:
+  using: composite
+  steps:
+    - name: Extract tools
+      shell: bash
+      run: |
+        set -xeuo pipefail
+        dir=$(mktemp -d '${{ runner.temp }}/tools.XXX')
+        mkdir -p "$dir/build" "$dir/bin"
+        echo 'FROM ghcr.io/linkerd/dev:${{ inputs.version }}-tools' > "$dir"/build/Dockerfile
+        docker buildx build "$dir"/build --output='type=tar' \
+            | tar xf - --directory="$dir/bin"
+        echo PATH="$dir/bin:$PATH" >> "$GITHUB_ENV"
+    - name: Verify tools
+      shell: bash
+      run: |
+        echo PATH="$PATH"
+        set -xeuo pipefail
+        helm version
+        kubectl version --output=yaml --client
+        just-dev --list
+        shellcheck --version
+        just-sh --list
+        k3d version
+        just-k3d --list

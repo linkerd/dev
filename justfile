@@ -2,7 +2,7 @@ version := ''
 image := 'ghcr.io/linkerd/dev'
 _tag :=  if version != '' { "--tag=" + image + ':' + version } else { "" }
 
-targets := 'action go rust rust-musl runtime'
+targets := 'go rust rust-musl tools runtime'
 
 load := 'false'
 push := 'false'
