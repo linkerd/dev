@@ -46,7 +46,7 @@ jobs:
       - run: which just
       - run: just --version
       - run: k3d version
-      - run: kubectl version
+      - run: kubectl version --output=yaml --client
 
   setup-go:
     runs-on: ubuntu-latest
