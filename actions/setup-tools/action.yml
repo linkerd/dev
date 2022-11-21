@@ -9,7 +9,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: ghcr.io/linkerd/dev:${{ inputs.version }}-tools
+    - run: docker pull ghcr.io/linkerd/dev:${{ inputs.version }}-tools
 
     - name: Extract tools
       shell: bash
