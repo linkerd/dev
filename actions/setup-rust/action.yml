@@ -19,7 +19,8 @@ runs:
       run: |
         rm -rf "$HOME/.cargo"
         curl --proto '=https' --tlsv1.3 -sSfLv 'https://sh.rustup.rs' | sh -s -- -y --default-toolchain '${{ inputs.version }}'
-        cat ~/.cargo/env >> "$GITHUB_ENV"
+        source ~/.cargo/env
+        echo PATH="$PATH" >> "$GITHUB_ENV"
 
     - shell: bash
       run: rustup component add clippy rustfmt
