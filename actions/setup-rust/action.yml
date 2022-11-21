@@ -18,7 +18,7 @@ runs:
     - shell: bash
       run: |
         rm -rf "$HOME/.cargo"
-        scurl -v 'https://sh.rustup.rs' | sh -s -- -y --default-toolchain '${{ inputs.version }}'
+        curl --proto '=https' --tlsv1.3 -sSfLv 'https://sh.rustup.rs' | sh -s -- -y --default-toolchain '${{ inputs.version }}'
         cat ~/.cargo/env >> "$GITHUB_ENV"
 
     - shell: bash
