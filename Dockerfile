@@ -262,11 +262,11 @@ COPY --link --from=yq /usr/local/bin/yq /
 COPY --link --from=go /go/bin/* /usr/local/go/bin/* /usr/local/bin/
 
 # Rust tools
-COPY --link --from=cargo-action-fmt /usr/local/bin/cargo-action-fmt /usr/local/bin/
-COPY --link --from=cargo-deny /usr/local/bin/cargo-deny /usr/local/bin/
-COPY --link --from=cargo-nextest /usr/local/bin/cargo-nextest /usr/local/bin/
-COPY --link --from=cargo-tarpaulin /usr/local/bin/cargo-tarpaulin /usr/local/bin/
-COPY --link bin/just-cargo /usr/local/bin/
+COPY --link --from=cargo-action-fmt /usr/local/bin/cargo-action-fmt /
+COPY --link --from=cargo-deny /usr/local/bin/cargo-deny /
+COPY --link --from=cargo-nextest /usr/local/bin/cargo-nextest /
+COPY --link --from=cargo-tarpaulin /usr/local/bin/cargo-tarpaulin /
+COPY --link bin/just-cargo /
 
 # Networking utilities
 COPY --link --from=ghcr.io/olix0r/hokay:v0.2.2 /hokay /
