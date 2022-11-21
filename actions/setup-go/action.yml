@@ -10,6 +10,7 @@ runs:
   using: composite
   steps:
     - run: docker pull ghcr.io/linkerd/dev:${{ inputs.version }}-go
+      shell: bash
 
     - name: Extract go utils
       shell: bash

@@ -10,6 +10,7 @@ runs:
   using: composite
   steps:
     - run: docker pull ghcr.io/linkerd/dev:${{ inputs.version }}-rust
+      shell: bash
 
     - name: Extract rust utils
       shell: bash
