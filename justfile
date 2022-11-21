@@ -2,7 +2,7 @@ version := ''
 image := 'ghcr.io/linkerd/dev'
 _tag :=  if version != '' { "--tag=" + image + ':' + version } else { "" }
 
-targets := 'go rust rust-musl tools runtime'
+targets := 'go rust rust-musl tools devcontainer'
 
 load := 'false'
 push := 'false'
@@ -28,7 +28,7 @@ build:
 
 _target target='':
     @just output='{{ output }}' image='{{ image }}' _build --target='{{ target }}' \
-        {{ if version == '' { '' } else { '--tag=' + image + ':' + version + if target == 'runtime' { '' } else { '-' + target } } }}
+        {{ if version == '' { '' } else { '--tag=' + image + ':' + version + if target == 'devcontainer' { '' } else { '-' + target } } }}
 
 # Build the devcontainer image
 _build *args='':

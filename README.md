@@ -8,7 +8,7 @@ This repository is **NOT** intended to be used typical Linkerd development. This
 repository includes submodules only for the purpose of validating and automating
 dev tooling changes.
 
-## `dev` images
+## Devcontainer
 
 The [Dockerfile] includes many targets. This can help caching when rebuilding
 the dev images and, more importantly, it allows us to publish several images for
@@ -18,9 +18,9 @@ different uses:
 - **go** -- build & test Go in development and CI
 - **rust** -- build & test Rust in development and CI
 - **rust-cross** -- build Rust for release in CI
-- **runtime** -- interactive development (e.g. in Visual Studio Code)
+- **decontainer** -- interactive development (e.g. in Visual Studio Code)
 
-The *runtime* image is tagged as `ghcr.io/linkerd/dev:vNN` and is expected to be
+The *devcontainer* image is tagged as `ghcr.io/linkerd/dev:vNN` and is expected to be
 set in a `.devcontainer.json` file. For example:
 
 ```json

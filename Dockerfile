@@ -277,10 +277,10 @@ COPY --link bin/just-cargo /
 COPY --link --from=ghcr.io/olix0r/hokay:v0.2.2 /hokay /
 
 ##
-## Runtime
+## Devcontainer
 ##
 
-FROM docker.io/debian:bullseye as runtime
+FROM docker.io/debian:bullseye as devcontainer
 RUN export DEBIAN_FRONTEND=noninteractive ; \
     apt-get update && apt-get upgrade -y --autoremove \
     && apt-get install -y \
