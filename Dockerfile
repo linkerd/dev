@@ -258,6 +258,16 @@ COPY --link --from=j5j /usr/local/bin/j5j /
 COPY --link --from=scurl /usr/local/bin/scurl /
 COPY --link --from=yq /usr/local/bin/yq /
 
+# Go tools
+COPY --link --from=go /go/bin/* /usr/local/go/bin/* /usr/local/bin/
+
+# Rust tools
+COPY --link --from=cargo-action-fmt /usr/local/bin/cargo-action-fmt /usr/local/bin/
+COPY --link --from=cargo-deny /usr/local/bin/cargo-deny /usr/local/bin/
+COPY --link --from=cargo-nextest /usr/local/bin/cargo-nextest /usr/local/bin/
+COPY --link --from=cargo-tarpaulin /usr/local/bin/cargo-tarpaulin /usr/local/bin/
+COPY --link bin/just-cargo /usr/local/bin/
+
 # Networking utilities
 COPY --link --from=ghcr.io/olix0r/hokay:v0.2.2 /hokay /
 

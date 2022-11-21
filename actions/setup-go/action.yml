@@ -1,37 +1,17 @@
 name: setup-go
-description: Sets up a Go build environment. Requires docker/setup-buildx-action@v2.
+description: Sets up a Go build environment.
 
 inputs:
   version:
-    description: Container image version
-    default: v35
+    description: Go version
+    default: 1.18.7
 
 runs:
   using: composite
   steps:
-    - name: Extract go utils
-      shell: bash
-      run: |
-        set -xeuo pipefail
-        dir=$(mktemp -d '${{ runner.temp }}/go.XXX')
-        mkdir -p "$dir/build" "$dir"
-        (
-          echo 'FROM scratch'
-          echo 'COPY --from=ghcr.io/linkerd/dev:${{ inputs.version }}-go /go /go'
-          echo 'COPY --from=ghcr.io/linkerd/dev:${{ inputs.version }}-go /usr/local /usr/local'
-        ) > "$dir"/build/Dockerfile
-        docker buildx build "$dir"/build --output='type=tar' \
-            | tar xf - --directory="$dir"
-        (
-          echo GOPATH="$dir/go"
-          echo PATH="$dir/go/bin:$dir/usr/local/go/bin:$PATH"
-          echo PROTOC="$dir/usr/local/bin/protoc"
-          echo PROTOC_INCLUDE="$dir/usr/local/include"
-        ) >> "$GITHUB_ENV"
-    - name: Verify go utils
-      if: inputs.go == 'true'
-      shell: bash
-      run: |
-        set -xeuo pipefail
-        env | sort
-        go version
+    - uses: actions/setup-go@v3
+      with:
+        go-version: '${{ inputs.version }}'
+
+    - shell: bash
+      run: go version

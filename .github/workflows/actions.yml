@@ -47,11 +47,14 @@ jobs:
       - run: just --version
       - run: k3d version
       - run: kubectl version --output=yaml --client
+      - run: just-cargo --list
+      - run: just-dev --list
+      - run: just-k3d --list
+      - run: just-sh --list
 
   setup-go:
     runs-on: ubuntu-latest
     steps:
-      - uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
       - uses: ./actions/setup-go
       - run: which go
@@ -60,7 +63,6 @@ jobs:
   setup-rust:
     runs-on: ubuntu-latest
     steps:
-      - uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
       - uses: ./actions/setup-rust
       - run: which cargo
