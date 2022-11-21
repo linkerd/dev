@@ -14,7 +14,6 @@ jobs:
   dev-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
       - uses: ./actions/setup-tools
       - run: just build
@@ -22,7 +21,6 @@ jobs:
   dev-shellcheck:
     runs-on: ubuntu-latest
     steps:
-      - uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
       - uses: ./actions/setup-tools
       - run: just-sh
@@ -31,7 +29,6 @@ jobs:
   dev-pull:
     runs-on: ubuntu-latest
     steps:
-      - uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
       - uses: ./actions/setup-tools
       - run: just-dev pull-dev-image

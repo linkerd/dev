@@ -16,7 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
       - uses: ./actions/setup-tools
       - run: just-dev lint-actions
@@ -24,7 +23,6 @@ jobs:
   check-action-images:
     runs-on: ubuntu-latest
     steps:
-      - uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
       - uses: ./actions/setup-tools
       - run: just-dev check-action-images
@@ -32,7 +30,6 @@ jobs:
   pull-action-images:
     runs-on: ubuntu-latest
     steps:
-      - uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
       - uses: ./actions/setup-tools
       - run: just-dev pull-action-images
@@ -40,7 +37,6 @@ jobs:
   setup-tools:
     runs-on: ubuntu-latest
     steps:
-      - uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
       - uses: ./actions/setup-tools
       - run: which just
