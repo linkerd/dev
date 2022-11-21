@@ -28,6 +28,7 @@ build:
 
 _target target='':
     @just output='{{ output }}' image='{{ image }}' _build --target='{{ target }}' \
+        {{ if target == 'tools' { '--squash' } else { '' } }} \
         {{ if version == '' { '' } else { '--tag=' + image + ':' + version + if target == 'runtime' { '' } else { '-' + target } } }}
 
 # Build the devcontainer image
