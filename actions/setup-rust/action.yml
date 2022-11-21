@@ -9,6 +9,8 @@ inputs:
 runs:
   using: composite
   steps:
+    - uses: ghcr.io/linkerd/dev:${{ inputs.version }}-rust
+
     - name: Extract rust utils
       shell: bash
       run: |
