@@ -174,6 +174,11 @@ COPY --link bin/just-cargo /usr/local/bin/just-cargo
 ENV PROTOC_NO_VENDOR=1 \
     PROTOC=/usr/local/bin/protoc \
     PROTOC_INCLUDE=/usr/local/include
+# Rust settings for CI
+ENV CARGO_INCREMENTAL=0 \
+    CARGO_NET_RETRY=10 \
+    RUST_BACKTRACE=short \
+    RUSTUP_MAX_RETRIES=10
 ENV USER=root
 ENTRYPOINT ["/usr/local/bin/just-cargo"]
 
