@@ -16,7 +16,7 @@ output := if push == 'true' {
 
 export DOCKER_PROGRESS := 'auto'
 
-build:
+build: && _list-if-load
    #!/usr/bin/env bash
     set -euo pipefail
     for tgt in {{ targets }} ; do
@@ -24,6 +24,31 @@ build:
              image='{{ image }}' \
              version='{{ version }}' \
             _target "$tgt"
+    done
+
+_list-if-load:
+    #!/usr/bin/env bash
+     set -euo pipefail
+     if [ '{{ load }}' = 'true' ] ; then
+          just image='{{ image }}' \
+               targets='{{ targets }}' \
+               version='{{ version }}' \
+              list
+     fi
+
+list:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -z '{{ version }}' ]; then
+        echo "Usage: just version=<version> list" >&2
+        exit 64
+    fi
+    for tgt in {{ targets }} ; do
+        if [ "$tgt" == "devcontainer" ]; then
+            docker image ls {{ image }}:{{ version }} | sed 1d
+        else
+            docker image ls {{ image }}:{{ version }}-$tgt | sed 1d
+        fi
     done
 
 _target target='':
@@ -36,6 +61,7 @@ _build *args='':
         --progress='{{ DOCKER_PROGRESS }}' \
         --output='{{ output }}' \
         {{ args }}
+
 
 md-lint *patterns="'**/*.md' '!repos/**'":
     @bin/just-md lint {{ patterns }}
