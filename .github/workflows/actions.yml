@@ -14,7 +14,7 @@ permissions:
 jobs:
   lint-actions:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
       - uses: ./actions/setup-tools
@@ -22,6 +22,7 @@ jobs:
 
   check-action-images:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
       - uses: ./actions/setup-tools
@@ -29,6 +30,7 @@ jobs:
 
   pull-action-images:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
       - uses: ./actions/setup-tools
@@ -36,6 +38,7 @@ jobs:
 
   setup-tools:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
       - uses: ./actions/setup-tools
@@ -50,6 +53,7 @@ jobs:
 
   setup-go:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
       - uses: ./actions/setup-go
@@ -58,6 +62,7 @@ jobs:
 
   setup-rust:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
       - uses: ./actions/setup-rust

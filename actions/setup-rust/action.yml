@@ -32,8 +32,3 @@ runs:
 
     - shell: bash
       run: rustup component add clippy rustfmt
-
-    - shell: bash
-      run: |
-        set -xeuo pipefail
-        cargo version

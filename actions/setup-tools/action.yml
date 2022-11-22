@@ -21,15 +21,3 @@ runs:
         docker buildx build "$dir"/build --output='type=tar' \
             | tar xf - --directory="$dir/bin"
         echo PATH="$dir/bin:$PATH" >> "$GITHUB_ENV"
-    - name: Verify tools
-      shell: bash
-      run: |
-        echo PATH="$PATH"
-        set -xeuo pipefail
-        helm version
-        kubectl version --output=yaml --client
-        just-dev --list
-        shellcheck --version
-        just-sh --list
-        k3d version
-        just-k3d --list

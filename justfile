@@ -32,7 +32,7 @@ _target target='':
 
 # Build the devcontainer image
 _build *args='':
-    docker buildx build . {{ _tag }} \
+    docker buildx build . {{ _tag }} --pull \
         --progress='{{ DOCKER_PROGRESS }}' \
         --output='{{ output }}' \
         {{ args }}
