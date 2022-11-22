@@ -2,9 +2,12 @@ name: setup-rust
 description: Sets up a Rust build environment.
 
 inputs:
+
+  # TODO(ver): CI should validate at this version matches that in the Dockerfile
   version:
     description: Container image version
     default: 1.64.0
+
   components:
     description: Rust components to install
     default: ''
