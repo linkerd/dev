@@ -15,12 +15,6 @@ inputs:
 runs:
   using: composite
   steps:
-    # - shell: bash
-    #   run: |
-    #     export DEBIAN_FRONTEND=noninteractive
-    #     sudo apt-get update
-    #     sudo apt-get install -y clang cmake libssl-dev llvm pkg-config
-
     - shell: bash
       run: |
         rm -rf "$HOME/.cargo"
