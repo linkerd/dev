@@ -1,100 +1,142 @@
+# syntax=docker/dockerfile:1.4
+
 ##
-## Base
+## Base layers used to build images
 ##
 
-FROM docker.io/debian:bullseye-slim as base
-RUN export DEBIAN_FRONTEND=noninteractive ; \
-    apt-get update && apt-get upgrade -y --autoremove \
-    && apt-get install -y \
-        curl \
-        file \
-        git \
-        jo \
-        jq \
-        time \
-        unzip \
-        xz-utils \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+# These layers include Debian apt caches, so layers that extend `apt-base`
+# should not be published. Instead, these layers should be used to provide
+# cached data to individual `RUN` commands.
+
+FROM docker.io/library/debian:bullseye-slim as apt-base
+RUN echo 'deb http://deb.debian.org/debian bullseye-backports main' >>/etc/apt/sources.list
+RUN DEBIAN_FRONTEND=noninteractive apt-get update
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y curl unzip xz-utils
 COPY --link bin/scurl /usr/local/bin/
 
-ARG YQ_VERSION=v4.25.1
-RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" ; \
-    scurl -o /usr/local/bin/yq "$url" && chmod +x /usr/local/bin/yq
+FROM apt-base as apt-node
+RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
 
-FROM base as just
+##
+## Scripting tools
+##
+
+FROM docker.io/library/debian:bullseye-slim as jojq
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y jo jq
+
+# j5j Turns JSON5 into plain old JSON (i.e. to be processed by jq).
+FROM apt-base as j5j
+ARG J5J_VERSION=v0.2.0
+RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
+    scurl "$url" | tar zvxf - -C /usr/local/bin j5j
+
+# just runs build/test recipes. Like make but a bit mroe ergonomic.
+FROM apt-base as just
 ARG JUST_VERSION=1.8.0
 RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin just
+
+# yq is kind of like jq, but for YAML.
+FROM apt-base as yq
+ARG YQ_VERSION=v4.25.1
+RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" ; \
+    scurl -o /yq "$url" && chmod +x /yq
+
+FROM scratch as tools-script
+COPY --link --from=j5j /usr/local/bin/j5j /
+COPY --link --from=jojq /usr/bin/jo /usr/bin/jq /
+COPY --link --from=just /usr/local/bin/just /
+COPY --link --from=yq /yq /
+COPY --link bin/scurl /
 
 ##
 ## Kubernetes tools
 ##
 
-FROM just as k8s
+# helm templates kubernetes manifests.
+FROM apt-base as helm
+ARG HELM_VERSION=v3.10.1
+RUN url="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" ; \
+    scurl "$url" | tar xzvf - --strip-components=1 -C /usr/local/bin linux-amd64/helm
 
+# helm-docs generates documentation from helm charts.
+FROM apt-base as helm-docs
+ARG HELM_DOCS_VERSION=v1.11.0
+RUN url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERSION/helm-docs_${HELM_DOCS_VERSION#v}_Linux_x86_64.tar.gz" ; \
+    scurl "$url" | tar xzvf - -C /usr/local/bin helm-docs
+
+# kubectl controls kubernetes clusters.
+FROM apt-base as kubectl
 ARG KUBECTL_VERSION=v1.25.3
 RUN url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" ; \
     scurl -o /usr/local/bin/kubectl "$url" && chmod +x /usr/local/bin/kubectl
 
+# k3d runs kubernetes clusters in docker.
+FROM apt-base as k3d
 ARG K3D_VERSION=v5.4.6
 RUN url="https://raw.githubusercontent.com/rancher/k3d/$K3D_VERSION/install.sh" ; \
     scurl "$url" | USE_SUDO=false K3D_INSTALL_DIR=/usr/local/bin bash
 COPY --link bin/just-k3d /usr/local/bin/just-k3d
 
-ARG HELM_VERSION=v3.10.1
-RUN url="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" ; \
-    scurl "$url" | tar xzvf - --strip-components=1 -C /usr/local/bin linux-amd64/helm
+# step is a tool for managing certificates.
+FROM apt-base as step
+ARG STEP_VERSION=v0.21.0
+RUN scurl -O "https://dl.step.sm/gh-release/cli/docs-cli-install/${STEP_VERSION}/step-cli_${STEP_VERSION#v}_amd64.deb" \
+    && dpkg -i "step-cli_${STEP_VERSION#v}_amd64.deb" \
+    && rm "step-cli_${STEP_VERSION#v}_amd64.deb"
 
-ARG HELM_DOCS_VERSION=v1.11.0
-RUN url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERSION/helm-docs_${HELM_DOCS_VERSION#v}_Linux_x86_64.tar.gz" ; \
-    scurl "$url" | tar xzvf - -C /usr/local/bin helm-docs
-
-FROM base as step
-RUN scurl -O https://dl.step.sm/gh-release/cli/docs-cli-install/v0.21.0/step-cli_0.21.0_amd64.deb \
-    && dpkg -i step-cli_0.21.0_amd64.deb
+FROM scratch as tools-k8s
+COPY --link --from=helm /usr/local/bin/helm /
+COPY --link --from=helm-docs /usr/local/bin/helm-docs /
+COPY --link --from=k3d /usr/local/bin/k3d /usr/local/bin/just-k3d /
+COPY --link --from=kubectl /usr/local/bin/kubectl /
+COPY --link --from=step /usr/bin/step-cli /
 
 ##
-## Action: Tools for linting repo actions
+## Linting tools
 ##
 
-FROM k8s as action
+# actionlint lints github actions workflows.
+FROM apt-base as actionlint
+ARG ACTIONLINT_VERSION=v1.6.21
+RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" ; \
+    scurl "$url" | tar xzvf - -C /usr/local/bin actionlint
 
-RUN export DEBIAN_FRONTEND=noninteractive \
-    && apt-get update \
-    && apt-get upgrade -y --autoremove \
-    && apt-get install -y gnupg \
-    && ( . /etc/os-release \
-        && scurl https://download.docker.com/linux/${ID}/gpg | gpg --dearmor > /usr/share/keyrings/docker-archive-keyring.gpg \
-        && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/${ID} ${VERSION_CODENAME} stable" > /etc/apt/sources.list.d/docker.list ) \
-    && apt-get update \
-    && apt-get install -y docker-ce-cli \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+# checksec checks binaries for security issues.
+FROM apt-base as checksec
+ARG CHECKSEC_VERSION=2.5.0
+RUN url="https://raw.githubusercontent.com/slimm609/checksec.sh/${CHECKSEC_VERSION}/checksec" ; \
+    scurl -o /usr/local/bin/checksec "$url" && chmod 755 /usr/local/bin/checksec
 
+# shellcheck lints shell scripts.
+FROM apt-base as shellcheck
 ARG SHELLCHECK_VERSION=v0.8.0
 RUN url="https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" ; \
     scurl "$url" | tar xJvf - --strip-components=1 -C /usr/local/bin "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
 COPY --link bin/just-sh /usr/local/bin/
 
-ARG J5J_VERSION=v0.2.0
-RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
-    scurl "$url" | tar zvxf - -C /usr/local/bin j5j
-
+# taplo lints and formats toml files.
+FROM apt-base as taplo
 ARG TAPLO_VERSION=v0.8.0
 RUN url="https://github.com/tamasfe/taplo/releases/download/${TAPLO_VERSION#v}/taplo-linux-x86_64.gz" ; \
     scurl "$url" | gunzip >/usr/local/bin/taplo \
     && chmod 755 /usr/local/bin/taplo
 
-ARG ACTIONLINT_VERSION=v1.6.21
-RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" ; \
-    scurl "$url" | tar xzvf - -C /usr/local/bin actionlint
-COPY --link bin/action-* bin/just-dev /usr/local/bin/
-ENTRYPOINT ["/usr/local/bin/just-dev"]
+FROM scratch as tools-lint
+COPY --link --from=actionlint /usr/local/bin/actionlint /
+COPY --link --from=checksec /usr/local/bin/checksec /
+COPY --link --from=shellcheck /usr/local/bin/shellcheck /
+COPY --link --from=taplo /usr/local/bin/taplo /
+COPY --link bin/action-* bin/just-dev bin/just-sh /
 
 ##
 ## Protobuf
 ##
 
-FROM base as protobuf
+FROM apt-base as protobuf
 ARG PROTOC_VERSION=v3.20.3
 RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/protoc-${PROTOC_VERSION#v}-linux-$(uname -m).zip" ; \
     cd $(mktemp -d) && \
@@ -106,138 +148,193 @@ RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/pr
     mv include/google /usr/local/include/
 
 ##
-## Rust image
+## Rust tools
 ##
 
-FROM base as checksec
-ARG CHECKSEC_VERSION=2.5.0
-RUN url="https://raw.githubusercontent.com/slimm609/checksec.sh/${CHECKSEC_VERSION}/checksec" ; \
-    scurl -o /usr/local/bin/checksec "$url" && chmod 755 /usr/local/bin/checksec
-
-FROM base as cargo-action-fmt
+# cargo-action-fmt formats `cargo build` JSON output to GithubActions annotations.
+FROM apt-base as cargo-action-fmt
 ARG CARGO_ACTION_FMT_VERSION=1.0.2
 RUN url="https://github.com/olix0r/cargo-action-fmt/releases/download/release%2Fv${CARGO_ACTION_FMT_VERSION}/cargo-action-fmt-x86_64-unknown-linux-gnu" ; \
     scurl -o /usr/local/bin/cargo-action-fmt "$url" && chmod +x /usr/local/bin/cargo-action-fmt
 
-FROM base as cargo-deny
+# cargo-deny checks cargo dependencies for licensing and RUSTSEC security issues.
+FROM apt-base as cargo-deny
 ARG CARGO_DENY_VERSION=0.12.2
 RUN url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - --strip-components=1 -C /usr/local/bin "cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl/cargo-deny"
 
-FROM base as cargo-nextest
+# cargo-nextest is a nicer test runner.
+FROM apt-base as cargo-nextest
 ARG NEXTEST_VERSION=0.9.42
 RUN url="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-${NEXTEST_VERSION}/cargo-nextest-${NEXTEST_VERSION}-x86_64-unknown-linux-gnu.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin cargo-nextest
 
-FROM base as cargo-tarpaulin
+# cargo-taraulin is a code coverage tool.
+FROM apt-base as cargo-tarpaulin
 ARG CARGO_TARPAULIN_VERSION=0.22.0
 RUN url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAULIN_VERSION}/cargo-tarpaulin-${CARGO_TARPAULIN_VERSION}-travis.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin cargo-tarpaulin
 
+FROM scratch as tools-rust
+COPY --link --from=cargo-action-fmt /usr/local/bin/cargo-action-fmt /
+COPY --link --from=cargo-deny /usr/local/bin/cargo-deny /
+COPY --link --from=cargo-nextest /usr/local/bin/cargo-nextest /
+COPY --link --from=cargo-tarpaulin /usr/local/bin/cargo-tarpaulin /
+COPY --link bin/just-cargo /
+
+##
+## Go tools
+##
+
+FROM docker.io/library/golang:1.18.7 as go-delve
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install github.com/go-delve/delve/cmd/dlv@latest
+
+FROM docker.io/library/golang:1.18.7 as go-impl
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install github.com/josharian/impl@latest
+
+FROM docker.io/library/golang:1.18.7 as go-outline
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install github.com/ramya-rao-a/go-outline@latest
+
+FROM docker.io/library/golang:1.18.7 as go-protoc
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+
+FROM docker.io/library/golang:1.18.7 as golangci-lint
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+FROM docker.io/library/golang:1.18.7 as gomodifytags
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install github.com/fatih/gomodifytags@latest
+
+FROM docker.io/library/golang:1.18.7 as gopkgs
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest
+
+FROM docker.io/library/golang:1.18.7 as goplay
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install github.com/haya14busa/goplay/cmd/goplay@latest
+
+FROM docker.io/library/golang:1.18.7 as gopls
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install golang.org/x/tools/gopls@latest
+
+FROM docker.io/library/golang:1.18.7 as gotests
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install github.com/cweill/gotests/gotests@latest
+
+FROM docker.io/library/golang:1.18.7 as gotestsum
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install gotest.tools/gotestsum@v0.4.2
+
+FROM scratch as tools-go
+COPY --link --from=go-delve /go/bin/dlv /
+COPY --link --from=go-impl /go/bin/impl /
+COPY --link --from=go-outline /go/bin/go-outline /
+COPY --link --from=go-protoc /go/bin/protoc-gen-* /
+COPY --link --from=golangci-lint /go/bin/golangci-lint /
+COPY --link --from=gomodifytags /go/bin/gomodifytags /
+COPY --link --from=goplay /go/bin/goplay /
+COPY --link --from=gopls /go/bin/gopls /
+COPY --link --from=gopkgs /go/bin/gopkgs /
+COPY --link --from=gotests /go/bin/gotests /
+COPY --link --from=gotestsum /go/bin/gotestsum /
+
+# Networking utilities
+FROM scratch as tools-net
+COPY --link --from=ghcr.io/olix0r/hokay:v0.2.2 /hokay /
+
+##
+## All Tools
+##
+
+FROM scratch as tools
+COPY --link --from=tools-go /* /
+COPY --link --from=tools-k8s /* /
+COPY --link --from=tools-lint /* /
+COPY --link --from=tools-net /* /
+COPY --link --from=tools-rust /* /
+COPY --link --from=tools-script /* /
+
+##
+## Base images
+##
+
+# A Go build environment.
+FROM docker.io/library/golang:1.18.7 as go
+COPY --link --from=tools-script /* /usr/local/bin/
+COPY --link --from=tools-go /* /usr/local/bin/
+COPY --link --from=protobuf /usr/local/bin/protoc /usr/local/bin/
+COPY --link --from=protobuf /usr/local/include/google /usr/local/include/google
+ENV PROTOC_NO_VENDOR=1 \
+    PROTOC=/usr/local/bin/protoc \
+    PROTOC_INCLUDE=/usr/local/include
+
+# A Rust build environment.
 FROM docker.io/rust:1.64.0-slim-bullseye as rust
-RUN rustup component add clippy rustfmt
-RUN rustup target add x86_64-unknown-linux-gnu
-RUN export DEBIAN_FRONTEND=noninteractive ; \
-    apt-get update && apt-get upgrade -y --autoremove \
-    && apt-get install -y \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
         clang \
         cmake \
         curl \
-        file \
         git \
-        jo \
-        jq \
         libssl-dev \
         llvm \
-        pkg-config \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-COPY --link --from=cargo-action-fmt /usr/local/bin/cargo-action-fmt /usr/local/cargo/bin/
-COPY --link --from=cargo-deny /usr/local/bin/cargo-deny /usr/local/cargo/bin/
-COPY --link --from=cargo-nextest /usr/local/bin/cargo-nextest /usr/local/cargo/bin/
-COPY --link --from=cargo-tarpaulin /usr/local/bin/cargo-tarpaulin /usr/local/cargo/bin/
-COPY --link --from=checksec /usr/local/bin/checksec /usr/local/bin/checksec
-COPY --link --from=just /usr/local/bin/just* /usr/local/bin/
+        pkg-config
+RUN rustup component add clippy rustfmt
+COPY --link --from=tools-script /* /usr/local/bin/
+COPY --link --from=tools-rust /* /usr/local/bin/
 COPY --link --from=protobuf /usr/local/bin/protoc /usr/local/bin/
 COPY --link --from=protobuf /usr/local/include/google /usr/local/include/google
-ENV PROTOC_NO_VENDOR=1
-ENV PROTOC=/usr/local/bin/protoc
-ENV PROTOC_INCLUDE=/usr/local/include
-COPY --link bin/scurl /usr/local/bin/scurl
-COPY --link bin/just-cargo /usr/local/bin/just-cargo
-ENV USER=root
+ENV PROTOC_NO_VENDOR=1 \
+    PROTOC=/usr/local/bin/protoc \
+    PROTOC_INCLUDE=/usr/local/include
+# Rust settings for CI
+ENV CARGO_INCREMENTAL=0 \
+    CARGO_NET_RETRY=10 \
+    RUST_BACKTRACE=short \
+    RUSTUP_MAX_RETRIES=10
 ENTRYPOINT ["/usr/local/bin/just-cargo"]
 
+COPY --link --from=just /usr/local/bin/just /usr/local/bin/
 FROM rust as rust-musl
 RUN rustup target add \
         aarch64-unknown-linux-musl \
         armv7-unknown-linux-musleabihf \
         x86_64-unknown-linux-musl
-RUN export DEBIAN_FRONTEND=noninteractive ; \
-    apt-get update && apt-get upgrade -y --autoremove \
-    && apt-get install -y \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
         g++-aarch64-linux-gnu \
         g++-arm-linux-gnueabihf \
         gcc-aarch64-linux-gnu \
         gcc-arm-linux-gnueabihf \
         libc6-dev-arm64-cross \
-        libc6-dev-armhf-cross \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+        libc6-dev-armhf-cross
 
 ##
-## Go image
+## Devcontainer
 ##
 
-FROM docker.io/golang:1.18.7 as go
-RUN export DEBIAN_FRONTEND=noninteractive ; \
-    apt-get update && apt-get upgrade -y --autoremove \
-    && apt-get install -y \
-        curl \
-        file \
-        jq \
-        time \
-        unzip \
-        xz-utils \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-RUN for p in \
-    github.com/cweill/gotests/gotests@latest \
-    github.com/go-delve/delve/cmd/dlv@latest \
-    github.com/golangci/golangci-lint/cmd/golangci-lint@latest \
-    github.com/fatih/gomodifytags@latest \
-    github.com/haya14busa/goplay/cmd/goplay@latest \
-    github.com/josharian/impl@latest \
-    github.com/ramya-rao-a/go-outline@latest \
-    github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest \
-    golang.org/x/tools/gopls@latest \
-    google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2 \
-    google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1 \
-    gotest.tools/gotestsum@v0.4.2 \
-    ; do go install "$p" ; done \
-    && rm -rf /go/pkg/* /go/src/*
-COPY --link bin/scurl /usr/local/bin/scurl
-COPY --link --from=just /usr/local/bin/just /usr/local/bin/
-COPY --link bin/just-cargo /usr/local/bin/
-COPY --link --from=protobuf /usr/local/bin/protoc /usr/local/bin/
-COPY --link --from=protobuf /usr/local/include/google /usr/local/include/google
-ENV PROTOC_NO_VENDOR=1
-ENV PROTOC=/usr/local/bin/protoc
-ENV PROTOC_INCLUDE=/usr/local/include
-
-##
-## Runtime
-##
-
-FROM docker.io/debian:bullseye as runtime
-RUN export DEBIAN_FRONTEND=noninteractive ; \
-    apt-get update && apt-get upgrade -y --autoremove \
-    && apt-get install -y \
+FROM docker.io/library/debian:bullseye as devcontainer
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
         clang \
         cmake \
         curl \
         dnsutils \
         file \
         iproute2 \
-        jo \
-        jq \
         libssl-dev \
         locales \
         lsb-release \
@@ -247,39 +344,39 @@ RUN export DEBIAN_FRONTEND=noninteractive ; \
         sudo \
         time \
         tshark \
-        unzip \
-    && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
-    && apt-get install -y nodejs \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-ARG MARKDOWNLINT_VERSION=0.5.1
-RUN npm install "markdownlint-cli2@${MARKDOWNLINT_VERSION}" --global
+        unzip
 
-COPY --link --from=action /usr/local/bin/* /usr/local/bin/
-COPY --link --from=checksec /usr/local/bin/checksec /usr/local/bin/checksec
-COPY --link --from=ghcr.io/olix0r/hokay:v0.2.2 /hokay /usr/local/bin/
-COPY --link --from=just /usr/local/bin/just /usr/local/bin/
-COPY --link --from=k8s /usr/local/bin/* /usr/local/bin/
-COPY --link --from=step /usr/bin/step-cli /usr/local/bin/step
+# git v2.34+ has new subcommands and supports code signing via SSH.
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -t bullseye-backports git
+
+ARG MARKDOWNLINT_VERSION=0.5.1
+RUN --mount=type=cache,from=apt-node,source=/etc/apt,target=/etc/apt,ro \
+    --mount=type=cache,from=apt-node,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-node,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+RUN npm install "markdownlint-cli2@${MARKDOWNLINT_VERSION}" --global
 COPY --link bin/just-md /usr/local/bin/
 
-ENV GOPATH=/go
-COPY --link --from=go /go/bin $GOPATH/bin
+COPY --link --from=tools /* /usr/local/bin/
+
 COPY --link --from=go /usr/local/go /usr/local/go
-RUN find "$GOPATH" -type d -exec chmod 777 '{}' +
-ENV PATH=/usr/local/go/bin:$GOPATH/bin:$PATH
+ENV PATH="/usr/local/go/bin:$PATH"
 
 ENV CARGO_HOME=/usr/local/cargo
 ENV RUSTUP_HOME=/usr/local/rustup
 COPY --link --from=rust $CARGO_HOME $CARGO_HOME
 COPY --link --from=rust $RUSTUP_HOME $RUSTUP_HOME
-COPY --link --from=rust /usr/local/bin/just-cargo /usr/local/bin/
 RUN find "$CARGO_HOME" "$RUSTUP_HOME" -type d -exec chmod 777 '{}' +
-ENV PATH=$CARGO_HOME/bin:$PATH
+ENV PATH="$CARGO_HOME/bin:$PATH"
 
+COPY --link --from=protobuf /usr/local/bin/protoc /usr/local/bin/protoc
 COPY --link --from=protobuf /usr/local/include/google /usr/local/include/google
-ENV PROTOC_NO_VENDOR=1
-ENV PROTOC=/usr/local/bin/protoc
-ENV PROTOC_INCLUDE=/usr/local/include
+ENV PROTOC_NO_VENDOR=1 \
+    PROTOC=/usr/local/bin/protoc \
+    PROTOC_INCLUDE=/usr/local/include
 
 RUN sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen \
     && locale-gen \
@@ -289,12 +386,19 @@ RUN groupadd --gid=1000 code \
     && echo "code ALL=(root) NOPASSWD:ALL" >/etc/sudoers.d/code \
     && chmod 0440 /etc/sudoers.d/code
 
-RUN scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh | bash -s \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=locked \
+    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
+    scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh | bash -s
 ENV DOCKER_BUILDKIT=1
 
-ENV HOME=/home/code
-ENV USER=code
+ENV HOME=/home/code \
+    USER=code
 USER code
+
+ENV GOPATH="$HOME/go"
+RUN mkdir -p "$GOPATH"
+ENV PATH="$GOPATH/bin:$PATH"
+
 ENTRYPOINT ["/usr/local/share/docker-init.sh"]
 CMD ["sleep", "infinity"]

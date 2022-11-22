@@ -15,28 +15,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - name: Run just build
-        uses: docker://ghcr.io/linkerd/dev:v34-action
-        with:
-          entrypoint: just
-          args: build
+      - uses: ./actions/setup-tools
+      - run: just build
 
   dev-shellcheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - uses: docker://ghcr.io/linkerd/dev:v34-action
-        with:
-          entrypoint: just-sh
+      - uses: ./actions/setup-tools
+      - run: just-sh
 
 
   dev-pull:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - uses: docker://ghcr.io/linkerd/dev:v34-action
-        with:
-          args: pull-dev-image
+      - uses: ./actions/setup-tools
+      - run: just-dev pull-dev-image
 
   markdownlint:
     timeout-minutes: 5

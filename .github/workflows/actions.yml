@@ -5,6 +5,7 @@ on:
     paths:
       - .devcontainer/actions.json
       - .github/workflows/**
+      - actions/**
       - justfile
 
 permissions:
@@ -13,25 +14,57 @@ permissions:
 jobs:
   lint-actions:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - run: docker://ghcr.io/linkerd/dev:v34-action
-        with:
-          args: lint-actions
+      - uses: ./actions/setup-tools
+      - run: just-dev lint-actions
 
   check-action-images:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - uses: docker://ghcr.io/linkerd/dev:v34-action
-        with:
-          args: check-action-images
+      - uses: ./actions/setup-tools
+      - run: just-dev check-action-images
 
   pull-action-images:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - uses: docker://ghcr.io/linkerd/dev:v34-action
-        with:
-          args: pull-action-images
+      - uses: ./actions/setup-tools
+      - run: just-dev pull-action-images
+
+  setup-tools:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+      - uses: ./actions/setup-tools
+      - run: which just
+      - run: just --version
+      - run: k3d version
+      - run: kubectl version --output=yaml --client
+      - run: just-cargo --list
+      - run: just-dev --list
+      - run: just-k3d --list
+      - run: just-sh --list
+
+  setup-go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+      - uses: ./actions/setup-go
+      - run: which go
+      - run: go version
+
+  setup-rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+      - uses: ./actions/setup-rust
+      - run: which cargo
+      - run: cargo version

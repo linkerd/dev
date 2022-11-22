@@ -1,0 +1,33 @@
+name: setup-rust
+description: Sets up a Rust build environment.
+
+inputs:
+
+  # TODO(ver): CI should validate at this version matches that in the Dockerfile
+  version:
+    description: Container image version
+    default: 1.64.0
+
+  components:
+    description: Rust components to install
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        rm -rf "$HOME/.cargo"
+        curl --proto '=https' --tlsv1.3 -sSfLv 'https://sh.rustup.rs' | sh -s -- -y --default-toolchain '${{ inputs.version }}'
+        source ~/.cargo/env
+        (
+          echo PATH="$PATH"
+          echo CARGO_INCREMENTAL=0
+          echo CARGO_NET_RETRY=10
+          echo RUST_BACKTRACE=short
+          echo RUSTUP_MAX_RETRIES=10
+        ) >> "$GITHUB_ENV"
+
+    - if: inputs.components
+      shell: bash
+      run: rustup component add ${{ inputs.components }}

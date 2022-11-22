@@ -1,0 +1,24 @@
+name: setup-tools
+description: Unpacks dev tools.
+
+inputs:
+  # TODO(ver): CI should validate at this version matches the most recent release tag
+  version:
+    description: Container image version
+    default: v35
+
+runs:
+  using: composite
+  steps:
+    - uses: docker/setup-buildx-action@v2
+
+    - name: Extract tools
+      shell: bash
+      run: |
+        set -xeuo pipefail
+        dir=$(mktemp -d '${{ runner.temp }}/tools.XXX')
+        mkdir -p "$dir/build" "$dir/bin"
+        echo 'FROM ghcr.io/linkerd/dev:${{ inputs.version }}-tools' > "$dir"/build/Dockerfile
+        docker buildx build "$dir"/build --output='type=tar' \
+            | tar xf - --directory="$dir/bin"
+        echo PATH="$dir/bin:$PATH" >> "$GITHUB_ENV"
