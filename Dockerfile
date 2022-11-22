@@ -182,47 +182,37 @@ COPY --link bin/just-cargo /
 
 FROM docker.io/library/golang:1.18.7 as go-delve
 RUN go install github.com/go-delve/delve/cmd/dlv@latest
-RUN strip /go/bin/dlv
 
 FROM docker.io/library/golang:1.18.7 as go-impl
 RUN go install github.com/josharian/impl@latest
 
 FROM docker.io/library/golang:1.18.7 as go-outline
 RUN go install github.com/ramya-rao-a/go-outline@latest
-RUN strip /go/bin/go-outline
 
 FROM docker.io/library/golang:1.18.7 as go-protoc
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
 RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
-RUN strip /go/bin/protoc-gen-go /go/bin/protoc-gen-go-grpc
 
 FROM docker.io/library/golang:1.18.7 as golangci-lint
 RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-RUN strip /go/bin/golangci-lint
 
 FROM docker.io/library/golang:1.18.7 as gomodifytags
 RUN go install github.com/fatih/gomodifytags@latest
-RUN strip /go/bin/gomodifytags
 
 FROM docker.io/library/golang:1.18.7 as gopkgs
 RUN go install github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest
-RUN strip /go/bin/gopkgs
 
 FROM docker.io/library/golang:1.18.7 as goplay
 RUN go install github.com/haya14busa/goplay/cmd/goplay@latest
-RUN strip /go/bin/goplay
 
 FROM docker.io/library/golang:1.18.7 as gopls
 RUN go install golang.org/x/tools/gopls@latest
-RUN strip /go/bin/gopls
 
 FROM docker.io/library/golang:1.18.7 as gotests
 RUN go install github.com/cweill/gotests/gotests@latest
-RUN strip /go/bin/gotests
 
 FROM docker.io/library/golang:1.18.7 as gotestsum
 RUN go install gotest.tools/gotestsum@v0.4.2
-RUN strip /go/bin/gotestsum
 
 FROM scratch as tools-go
 COPY --link --from=go-delve /go/bin/dlv /
