@@ -5,6 +5,9 @@ inputs:
   version:
     description: Container image version
     default: 1.64.0
+  components:
+    description: Rust components to install
+    default: ''
 
 runs:
   using: composite
@@ -28,5 +31,6 @@ runs:
           echo RUSTUP_MAX_RETRIES=10
         ) >> "$GITHUB_ENV"
 
-    - shell: bash
-      run: rustup component add clippy rustfmt
+    - if: inputs.components
+      shell: bash
+      run: rustup component add ${{ inputs.components }}
