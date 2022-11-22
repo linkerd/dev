@@ -17,15 +17,14 @@ COPY --link bin/scurl /usr/local/bin/
 FROM apt-base as apt-node
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
 
-FROM apt-base as apt-docker
-
 ##
 ## Scripting tools
 ##
 
 FROM docker.io/library/debian:bullseye-slim as jojq
-RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
     DEBIAN_FRONTEND=noninteractive apt-get install -y jo jq
 
 # j5j Turns JSON5 into plain old JSON (i.e. to be processed by jq).
@@ -188,38 +187,50 @@ COPY --link bin/just-cargo /
 ##
 
 FROM docker.io/library/golang:1.18.7 as go-delve
-RUN go install github.com/go-delve/delve/cmd/dlv@latest
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install github.com/go-delve/delve/cmd/dlv@latest
 
 FROM docker.io/library/golang:1.18.7 as go-impl
-RUN go install github.com/josharian/impl@latest
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install github.com/josharian/impl@latest
 
 FROM docker.io/library/golang:1.18.7 as go-outline
-RUN go install github.com/ramya-rao-a/go-outline@latest
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install github.com/ramya-rao-a/go-outline@latest
 
 FROM docker.io/library/golang:1.18.7 as go-protoc
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
-RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
 
 FROM docker.io/library/golang:1.18.7 as golangci-lint
-RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
 FROM docker.io/library/golang:1.18.7 as gomodifytags
-RUN go install github.com/fatih/gomodifytags@latest
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install github.com/fatih/gomodifytags@latest
 
 FROM docker.io/library/golang:1.18.7 as gopkgs
-RUN go install github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest
 
 FROM docker.io/library/golang:1.18.7 as goplay
-RUN go install github.com/haya14busa/goplay/cmd/goplay@latest
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install github.com/haya14busa/goplay/cmd/goplay@latest
 
 FROM docker.io/library/golang:1.18.7 as gopls
-RUN go install golang.org/x/tools/gopls@latest
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install golang.org/x/tools/gopls@latest
 
 FROM docker.io/library/golang:1.18.7 as gotests
-RUN go install github.com/cweill/gotests/gotests@latest
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install github.com/cweill/gotests/gotests@latest
 
 FROM docker.io/library/golang:1.18.7 as gotestsum
-RUN go install gotest.tools/gotestsum@v0.4.2
+RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+    go install gotest.tools/gotestsum@v0.4.2
 
 FROM scratch as tools-go
 COPY --link --from=go-delve /go/bin/dlv /
@@ -243,12 +254,12 @@ COPY --link --from=ghcr.io/olix0r/hokay:v0.2.2 /hokay /
 ##
 
 FROM scratch as tools
-COPY --from=tools-go /* /
-COPY --from=tools-k8s /* /
-COPY --from=tools-lint /* /
-COPY --from=tools-net /* /
-COPY --from=tools-rust /* /
-COPY --from=tools-script /* /
+COPY --link --from=tools-go /* /
+COPY --link --from=tools-k8s /* /
+COPY --link --from=tools-lint /* /
+COPY --link --from=tools-net /* /
+COPY --link --from=tools-rust /* /
+COPY --link --from=tools-script /* /
 
 ##
 ## Base images
@@ -266,8 +277,9 @@ ENV PROTOC_NO_VENDOR=1 \
 
 # A Rust build environment.
 FROM docker.io/rust:1.64.0-slim-bullseye as rust
-RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         clang \
         cmake \
@@ -297,8 +309,9 @@ RUN rustup target add \
         aarch64-unknown-linux-musl \
         armv7-unknown-linux-musleabihf \
         x86_64-unknown-linux-musl
-RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         g++-aarch64-linux-gnu \
         g++-arm-linux-gnueabihf \
@@ -312,8 +325,9 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt \
 ##
 
 FROM docker.io/library/debian:bullseye as devcontainer
-RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         clang \
         cmake \
@@ -333,13 +347,15 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt \
         unzip
 
 # git v2.34+ has new subcommands and supports code signing via SSH.
-RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
     DEBIAN_FRONTEND=noninteractive apt-get install -y -t bullseye-backports git
 
 ARG MARKDOWNLINT_VERSION=0.5.1
-RUN --mount=type=cache,from=apt-node,source=/etc/apt,target=/etc/apt \
-    --mount=type=cache,from=apt-node,source=/var/lib/apt,target=/var/lib/apt \
+RUN --mount=type=cache,from=apt-node,source=/etc/apt,target=/etc/apt,ro \
+    --mount=type=cache,from=apt-node,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-node,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
     DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
 RUN npm install "markdownlint-cli2@${MARKDOWNLINT_VERSION}" --global
 COPY --link bin/just-md /usr/local/bin/
@@ -370,8 +386,9 @@ RUN groupadd --gid=1000 code \
     && echo "code ALL=(root) NOPASSWD:ALL" >/etc/sudoers.d/code \
     && chmod 0440 /etc/sudoers.d/code
 
-RUN --mount=type=cache,from=apt-docker,source=/etc/apt,target=/etc/apt \
-    --mount=type=cache,from=apt-docker,source=/var/lib/apt,target=/var/lib/apt \
+RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=locked \
+    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh | bash -s
 ENV DOCKER_BUILDKIT=1
 
