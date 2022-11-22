@@ -271,7 +271,9 @@ RUN export DEBIAN_FRONTEND=noninteractive ; \
     apt-get update && apt-get install -y \
         clang \
         cmake \
+        curl \
         git \
+        libssl-dev \
         llvm \
         pkg-config \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
