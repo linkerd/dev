@@ -1,82 +1,85 @@
+# syntax=docker/dockerfile:1.4
+
 ##
-## Base
+## Base layers used to build images
 ##
 
-# scurl is a curl wrapper that enforces use of HTTPS with TLSv1.3.
-FROM docker.io/library/debian:bullseye-slim as scurl
-RUN export DEBIAN_FRONTEND=noninteractive ; \
-    apt-get update && apt-get install -y \
-        curl \
-        unzip \
-        xz-utils \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+# These layers include Debian apt caches, so layers that extend `apt-base`
+# should not be published. Instead, these layers should be used to provide
+# cached data to individual `RUN` commands.
+
+FROM docker.io/library/debian:bullseye-slim as apt-base
+RUN DEBIAN_FRONTEND=noninteractive apt-get update
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y curl unzip xz-utils
 COPY --link bin/scurl /usr/local/bin/
+
+FROM apt-base as apt-node
+RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
 
 ##
 ## Scripting tools
 ##
 
 FROM docker.io/library/debian:bullseye-slim as jojq
-RUN export DEBIAN_FRONTEND=noninteractive ; \
-    apt-get update && apt-get install -y jo jq \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y jo jq
 
 # j5j Turns JSON5 into plain old JSON (i.e. to be processed by jq).
-FROM scurl as j5j
+FROM apt-base as j5j
 ARG J5J_VERSION=v0.2.0
 RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin j5j
 
 # just runs build/test recipes. Like make but a bit mroe ergonomic.
-FROM scurl as just
+FROM apt-base as just
 ARG JUST_VERSION=1.8.0
 RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin just
 
 # yq is kind of like jq, but for YAML.
-FROM scurl as yq
+FROM apt-base as yq
 ARG YQ_VERSION=v4.25.1
 RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" ; \
-    scurl -o /usr/local/bin/yq "$url" && chmod +x /usr/local/bin/yq
+    scurl -o /yq "$url" && chmod +x /yq
 
 FROM scratch as tools-script
 COPY --link --from=j5j /usr/local/bin/j5j /
 COPY --link --from=jojq /usr/bin/jo /usr/bin/jq /
 COPY --link --from=just /usr/local/bin/just /
-COPY --link --from=scurl /usr/local/bin/scurl /
-COPY --link --from=yq /usr/local/bin/yq /
+COPY --link --from=yq /yq /
+COPY --link bin/scurl /
 
 ##
 ## Kubernetes tools
 ##
 
 # helm templates kubernetes manifests.
-FROM scurl as helm
+FROM apt-base as helm
 ARG HELM_VERSION=v3.10.1
 RUN url="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" ; \
     scurl "$url" | tar xzvf - --strip-components=1 -C /usr/local/bin linux-amd64/helm
 
 # helm-docs generates documentation from helm charts.
-FROM scurl as helm-docs
+FROM apt-base as helm-docs
 ARG HELM_DOCS_VERSION=v1.11.0
 RUN url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERSION/helm-docs_${HELM_DOCS_VERSION#v}_Linux_x86_64.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin helm-docs
 
 # kubectl controls kubernetes clusters.
-FROM scurl as kubectl
+FROM apt-base as kubectl
 ARG KUBECTL_VERSION=v1.25.3
 RUN url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" ; \
     scurl -o /usr/local/bin/kubectl "$url" && chmod +x /usr/local/bin/kubectl
 
 # k3d runs kubernetes clusters in docker.
-FROM scurl as k3d
+FROM apt-base as k3d
 ARG K3D_VERSION=v5.4.6
 RUN url="https://raw.githubusercontent.com/rancher/k3d/$K3D_VERSION/install.sh" ; \
     scurl "$url" | USE_SUDO=false K3D_INSTALL_DIR=/usr/local/bin bash
 COPY --link bin/just-k3d /usr/local/bin/just-k3d
 
 # step is a tool for managing certificates.
-FROM scurl as step
+FROM apt-base as step
 ARG STEP_VERSION=v0.21.0
 RUN scurl -O "https://dl.step.sm/gh-release/cli/docs-cli-install/${STEP_VERSION}/step-cli_${STEP_VERSION#v}_amd64.deb" \
     && dpkg -i "step-cli_${STEP_VERSION#v}_amd64.deb" \
@@ -94,26 +97,26 @@ COPY --link --from=step /usr/bin/step-cli /
 ##
 
 # actionlint lints github actions workflows.
-FROM scurl as actionlint
+FROM apt-base as actionlint
 ARG ACTIONLINT_VERSION=v1.6.21
 RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin actionlint
 
 # checksec checks binaries for security issues.
-FROM scurl as checksec
+FROM apt-base as checksec
 ARG CHECKSEC_VERSION=2.5.0
 RUN url="https://raw.githubusercontent.com/slimm609/checksec.sh/${CHECKSEC_VERSION}/checksec" ; \
     scurl -o /usr/local/bin/checksec "$url" && chmod 755 /usr/local/bin/checksec
 
 # shellcheck lints shell scripts.
-FROM scurl as shellcheck
+FROM apt-base as shellcheck
 ARG SHELLCHECK_VERSION=v0.8.0
 RUN url="https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" ; \
     scurl "$url" | tar xJvf - --strip-components=1 -C /usr/local/bin "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
 COPY --link bin/just-sh /usr/local/bin/
 
 # taplo lints and formats toml files.
-FROM scurl as taplo
+FROM apt-base as taplo
 ARG TAPLO_VERSION=v0.8.0
 RUN url="https://github.com/tamasfe/taplo/releases/download/${TAPLO_VERSION#v}/taplo-linux-x86_64.gz" ; \
     scurl "$url" | gunzip >/usr/local/bin/taplo \
@@ -130,7 +133,7 @@ COPY --link bin/action-* bin/just-dev bin/just-sh /
 ## Protobuf
 ##
 
-FROM scurl as protobuf
+FROM apt-base as protobuf
 ARG PROTOC_VERSION=v3.20.3
 RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/protoc-${PROTOC_VERSION#v}-linux-$(uname -m).zip" ; \
     cd $(mktemp -d) && \
@@ -146,25 +149,25 @@ RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/pr
 ##
 
 # cargo-action-fmt formats `cargo build` JSON output to GithubActions annotations.
-FROM scurl as cargo-action-fmt
+FROM apt-base as cargo-action-fmt
 ARG CARGO_ACTION_FMT_VERSION=1.0.2
 RUN url="https://github.com/olix0r/cargo-action-fmt/releases/download/release%2Fv${CARGO_ACTION_FMT_VERSION}/cargo-action-fmt-x86_64-unknown-linux-gnu" ; \
     scurl -o /usr/local/bin/cargo-action-fmt "$url" && chmod +x /usr/local/bin/cargo-action-fmt
 
 # cargo-deny checks cargo dependencies for licensing and RUSTSEC security issues.
-FROM scurl as cargo-deny
+FROM apt-base as cargo-deny
 ARG CARGO_DENY_VERSION=0.12.2
 RUN url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - --strip-components=1 -C /usr/local/bin "cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl/cargo-deny"
 
 # cargo-nextest is a nicer test runner.
-FROM scurl as cargo-nextest
+FROM apt-base as cargo-nextest
 ARG NEXTEST_VERSION=0.9.42
 RUN url="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-${NEXTEST_VERSION}/cargo-nextest-${NEXTEST_VERSION}-x86_64-unknown-linux-gnu.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin cargo-nextest
 
 # cargo-taraulin is a code coverage tool.
-FROM scurl as cargo-tarpaulin
+FROM apt-base as cargo-tarpaulin
 ARG CARGO_TARPAULIN_VERSION=0.22.0
 RUN url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAULIN_VERSION}/cargo-tarpaulin-${CARGO_TARPAULIN_VERSION}-travis.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin cargo-tarpaulin
@@ -232,7 +235,7 @@ FROM scratch as tools-net
 COPY --link --from=ghcr.io/olix0r/hokay:v0.2.2 /hokay /
 
 ##
-## Tools (for CI)
+## All Tools
 ##
 
 FROM scratch as tools
@@ -247,6 +250,7 @@ COPY --from=tools-script /* /
 ## Base images
 ##
 
+# A Go build environment.
 FROM docker.io/library/golang:1.18.7 as go
 COPY --link --from=tools-script /* /usr/local/bin/
 COPY --link --from=tools-go /* /usr/local/bin/
@@ -256,17 +260,17 @@ ENV PROTOC_NO_VENDOR=1 \
     PROTOC=/usr/local/bin/protoc \
     PROTOC_INCLUDE=/usr/local/include
 
+# A Rust build environment.
 FROM docker.io/rust:1.64.0-slim-bullseye as rust
-RUN export DEBIAN_FRONTEND=noninteractive ; \
-    apt-get update && apt-get install -y \
+RUN --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
         clang \
         cmake \
         curl \
         git \
         libssl-dev \
         llvm \
-        pkg-config \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+        pkg-config
 RUN rustup component add clippy rustfmt
 COPY --link --from=tools-script /* /usr/local/bin/
 COPY --link --from=tools-rust /* /usr/local/bin/
@@ -288,23 +292,22 @@ RUN rustup target add \
         aarch64-unknown-linux-musl \
         armv7-unknown-linux-musleabihf \
         x86_64-unknown-linux-musl
-RUN export DEBIAN_FRONTEND=noninteractive ; \
-    apt-get update && apt-get install -y \
+RUN --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
         g++-aarch64-linux-gnu \
         g++-arm-linux-gnueabihf \
         gcc-aarch64-linux-gnu \
         gcc-arm-linux-gnueabihf \
         libc6-dev-arm64-cross \
-        libc6-dev-armhf-cross \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+        libc6-dev-armhf-cross
 
 ##
 ## Devcontainer
 ##
 
 FROM docker.io/library/debian:bullseye as devcontainer
-RUN export DEBIAN_FRONTEND=noninteractive ; \
-    apt-get update && apt-get install -y \
+RUN --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
         clang \
         cmake \
         curl \
@@ -322,15 +325,13 @@ RUN export DEBIAN_FRONTEND=noninteractive ; \
         sudo \
         time \
         tshark \
-        unzip \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+        unzip
 
 COPY --link --from=tools /* /usr/local/bin/
 
 ARG MARKDOWNLINT_VERSION=0.5.1
-RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
-    && apt-get install -y nodejs \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,from=apt-node,source=/var/lib/apt,target=/var/lib/apt \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs npm
 RUN npm install "markdownlint-cli2@${MARKDOWNLINT_VERSION}" --global
 COPY --link bin/just-md /usr/local/bin/
 
@@ -354,8 +355,8 @@ RUN groupadd --gid=1000 code \
     && echo "code ALL=(root) NOPASSWD:ALL" >/etc/sudoers.d/code \
     && chmod 0440 /etc/sudoers.d/code
 
-RUN scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh | bash -s \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
+    scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh | bash -s
 ENV DOCKER_BUILDKIT=1
 
 ENV HOME=/home/code \
