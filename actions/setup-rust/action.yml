@@ -9,11 +9,11 @@ inputs:
 runs:
   using: composite
   steps:
-    - shell: bash
-      run: |
-        export DEBIAN_FRONTEND=noninteractive
-        sudo apt-get update
-        sudo apt-get install -y clang cmake libssl-dev llvm pkg-config
+    # - shell: bash
+    #   run: |
+    #     export DEBIAN_FRONTEND=noninteractive
+    #     sudo apt-get update
+    #     sudo apt-get install -y clang cmake libssl-dev llvm pkg-config
 
     - shell: bash
       run: |
@@ -22,6 +22,8 @@ runs:
         source ~/.cargo/env
         (
           echo PATH="$PATH"
+          echo CARGO_HOME="~/.cargo"
+          echo RUSTUP_HOME="~/.rustup"
           echo CARGO_INCREMENTAL=0
           echo CARGO_NET_RETRY=10
           echo RUST_BACKTRACE=short
