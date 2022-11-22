@@ -336,10 +336,14 @@ RUN npm install "markdownlint-cli2@${MARKDOWNLINT_VERSION}" --global
 COPY --link bin/just-md /usr/local/bin/
 
 COPY --link --from=go /usr/local/go /usr/local/go
-ENV PATH=/usr/local/go/bin:$PATH
+ENV PATH="/usr/local/go/bin:$PATH"
 
+ENV CARGO_HOME=/usr/local/cargo
 ENV RUSTUP_HOME=/usr/local/rustup
+COPY --link --from=rust $CARGO_HOME $CARGO_HOME
 COPY --link --from=rust $RUSTUP_HOME $RUSTUP_HOME
+RUN find "$CARGO_HOME" "$RUSTUP_HOME" -type d -exec chmod 777 '{}' +
+ENV PATH="$CARGO_HOME/bin:$PATH"
 
 COPY --link --from=protobuf /usr/local/bin/protoc /usr/local/bin/protoc
 COPY --link --from=protobuf /usr/local/include/google /usr/local/include/google
@@ -362,9 +366,6 @@ ENV DOCKER_BUILDKIT=1
 ENV HOME=/home/code \
     USER=code
 USER code
-
-ENV CARGO_HOME="$HOME/.cargo"
-RUN mkdir "$CARGO_HOME"
 
 ENV GOPATH="$HOME/go"
 RUN mkdir -p "$GOPATH/go"
