@@ -9,6 +9,7 @@
 # cached data to individual `RUN` commands.
 
 FROM docker.io/library/debian:bullseye-slim as apt-base
+RUN echo 'deb http://deb.debian.org/debian bullseye-backports main' >>/etc/apt/sources.list
 RUN DEBIAN_FRONTEND=noninteractive apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y curl unzip xz-utils
 COPY --link bin/scurl /usr/local/bin/
@@ -16,12 +17,15 @@ COPY --link bin/scurl /usr/local/bin/
 FROM apt-base as apt-node
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
 
+FROM apt-base as apt-docker
+
 ##
 ## Scripting tools
 ##
 
 FROM docker.io/library/debian:bullseye-slim as jojq
-RUN --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
     DEBIAN_FRONTEND=noninteractive apt-get install -y jo jq
 
 # j5j Turns JSON5 into plain old JSON (i.e. to be processed by jq).
@@ -262,7 +266,8 @@ ENV PROTOC_NO_VENDOR=1 \
 
 # A Rust build environment.
 FROM docker.io/rust:1.64.0-slim-bullseye as rust
-RUN --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         clang \
         cmake \
@@ -292,7 +297,8 @@ RUN rustup target add \
         aarch64-unknown-linux-musl \
         armv7-unknown-linux-musleabihf \
         x86_64-unknown-linux-musl
-RUN --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         g++-aarch64-linux-gnu \
         g++-arm-linux-gnueabihf \
@@ -306,7 +312,8 @@ RUN --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
 ##
 
 FROM docker.io/library/debian:bullseye as devcontainer
-RUN --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         clang \
         cmake \
@@ -314,8 +321,6 @@ RUN --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
         dnsutils \
         file \
         iproute2 \
-        jo \
-        jq \
         libssl-dev \
         locales \
         lsb-release \
@@ -327,13 +332,19 @@ RUN --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
         tshark \
         unzip
 
-COPY --link --from=tools /* /usr/local/bin/
+# git v2.34+ has new subcommands and supports code signing via SSH.
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -t bullseye-backports git
 
 ARG MARKDOWNLINT_VERSION=0.5.1
-RUN --mount=type=cache,from=apt-node,source=/var/lib/apt,target=/var/lib/apt \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs npm
+RUN --mount=type=cache,from=apt-node,source=/etc/apt,target=/etc/apt \
+    --mount=type=cache,from=apt-node,source=/var/lib/apt,target=/var/lib/apt \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
 RUN npm install "markdownlint-cli2@${MARKDOWNLINT_VERSION}" --global
 COPY --link bin/just-md /usr/local/bin/
+
+COPY --link --from=tools /* /usr/local/bin/
 
 COPY --link --from=go /usr/local/go /usr/local/go
 ENV PATH="/usr/local/go/bin:$PATH"
@@ -359,7 +370,8 @@ RUN groupadd --gid=1000 code \
     && echo "code ALL=(root) NOPASSWD:ALL" >/etc/sudoers.d/code \
     && chmod 0440 /etc/sudoers.d/code
 
-RUN --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt \
+RUN --mount=type=cache,from=apt-docker,source=/etc/apt,target=/etc/apt \
+    --mount=type=cache,from=apt-docker,source=/var/lib/apt,target=/var/lib/apt \
     scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh | bash -s
 ENV DOCKER_BUILDKIT=1
 
@@ -368,7 +380,7 @@ ENV HOME=/home/code \
 USER code
 
 ENV GOPATH="$HOME/go"
-RUN mkdir -p "$GOPATH/go"
+RUN mkdir -p "$GOPATH"
 ENV PATH="$GOPATH/bin:$PATH"
 
 ENTRYPOINT ["/usr/local/share/docker-init.sh"]
