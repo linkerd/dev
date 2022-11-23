@@ -19,6 +19,5 @@ runs:
         dir=$(mktemp -d '${{ runner.temp }}/tools.XXX')
         mkdir -p "$dir/build" "$dir/bin"
         echo 'FROM ghcr.io/linkerd/dev:${{ inputs.version }}-tools' > "$dir"/build/Dockerfile
-        docker buildx build "$dir"/build --output='type=tar' \
-            | tar xf - --directory="$dir/bin"
+        docker buildx build "$dir"/build --output="type=local,dest=$dir/bin"
         echo PATH="$dir/bin:$PATH" >> "$GITHUB_ENV"
