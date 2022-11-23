@@ -1,3 +1,4 @@
 #!/usr/bin/env sh
 
+# Assert that we're using HTTPS over TLSv1.3.
 exec curl --proto '=https' --tlsv1.3 -sSfL "$@"

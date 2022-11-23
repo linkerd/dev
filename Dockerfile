@@ -14,6 +14,9 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y curl unzip xz-utils
 COPY --link bin/scurl /usr/local/bin/
 
+# node v16 is not available in bullseye-backports, so we need to configure an
+# additional apt repo to get it. We don't want to use that configuration for
+# anything else, though.
 FROM apt-base as apt-node
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
 
@@ -33,7 +36,7 @@ ARG J5J_VERSION=v0.2.0
 RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin j5j
 
-# just runs build/test recipes. Like make but a bit mroe ergonomic.
+# just runs build/test recipes. Like `make` but a bit more ergonomic.
 FROM apt-base as just
 ARG JUST_VERSION=1.8.0
 RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
@@ -151,7 +154,7 @@ RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/pr
 ## Rust tools
 ##
 
-# cargo-action-fmt formats `cargo build` JSON output to GithubActions annotations.
+# cargo-action-fmt formats `cargo build` JSON output to Github Actions annotations.
 FROM apt-base as cargo-action-fmt
 ARG CARGO_ACTION_FMT_VERSION=1.0.2
 RUN url="https://github.com/olix0r/cargo-action-fmt/releases/download/release%2Fv${CARGO_ACTION_FMT_VERSION}/cargo-action-fmt-x86_64-unknown-linux-gnu" ; \
@@ -169,7 +172,7 @@ ARG NEXTEST_VERSION=0.9.42
 RUN url="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-${NEXTEST_VERSION}/cargo-nextest-${NEXTEST_VERSION}-x86_64-unknown-linux-gnu.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin cargo-nextest
 
-# cargo-taraulin is a code coverage tool.
+# cargo-tarpaulin is a code coverage tool.
 FROM apt-base as cargo-tarpaulin
 ARG CARGO_TARPAULIN_VERSION=0.22.0
 RUN url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAULIN_VERSION}/cargo-tarpaulin-${CARGO_TARPAULIN_VERSION}-travis.tar.gz" ; \
@@ -386,9 +389,15 @@ RUN groupadd --gid=1000 code \
     && echo "code ALL=(root) NOPASSWD:ALL" >/etc/sudoers.d/code \
     && chmod 0440 /etc/sudoers.d/code
 
-RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=locked \
-    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
+# Use microsoft's Docker setup script to install the Docker CLI.
+#
+# A distinct cache is used because the script adds an apt repo that we don't
+# want to pull in for other layers.
+#
+# TODO(ver): replace this with a devcontainer feature?
+RUN --mount=type=cache,id=apt-docker,sharing=locked,from=apt-base,source=/etc/apt,target=/etc/apt \
+    --mount=type=cache,id=apt-docker,sharing=locked,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
+    --mount=type=cache,id=apt-docker,sharing=locked,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists \
     scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh | bash -s
 ENV DOCKER_BUILDKIT=1
 
