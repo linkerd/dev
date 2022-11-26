@@ -24,25 +24,26 @@ check-action-images:
     set -euo pipefail
     IMAGE=$(j5j .devcontainer/devcontainer.json |jq -r '.image')
     EX=0
-    while IFS= read filelineimg ; do
-        # Parse lines in the form `file:line img:tag`
-        fileline="${filelineimg%% *}"
-        file="${fileline%%:*}"
-        line="${fileline##*:}"
-        img="${filelineimg##* }"
-        name="${img%%:*}"
-        # Tag may be in the form of `version[-variant]`
-        tag="${img##*:}"
-        version="${tag%%-*}"
-        if [ "$name" = 'ghcr.io/linkerd/dev' ] && [ "$name:$version" != "$IMAGE" ]; then
-            if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
-                echo "::error file=${file},line=${line}::Expected image '$IMAGE'; found '${img}'" >&2
-            else
-                echo "${file}:${line}: Expected image '$IMAGE'; found '${img}'" >&2
+    {{ justfile_directory() / "action-images" }} |
+        while IFS= read filelineimg ; do
+            # Parse lines in the form `file:line img:tag`
+            fileline="${filelineimg%% *}"
+            file="${fileline%%:*}"
+            line="${fileline##*:}"
+            img="${filelineimg##* }"
+            name="${img%%:*}"
+            # Tag may be in the form of `version[-variant]`
+            tag="${img##*:}"
+            version="${tag%%-*}"
+            if [ "$name" = 'ghcr.io/linkerd/dev' ] && [ "$name:$version" != "$IMAGE" ]; then
+                if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+                    echo "::error file=${file},line=${line}::Expected image '$IMAGE'; found '${img}'" >&2
+                else
+                    echo "${file}:${line}: Expected image '$IMAGE'; found '${img}'" >&2
+                fi
+                EX=$(( EX+1 ))
             fi
-            EX=$(( EX+1 ))
-        fi
-    done < <({{ justfile_directory() / "action-images" }})
+        done
     exit $EX
 
 # Pulls all images used in GitHub Actions workflows
@@ -53,21 +54,25 @@ pull-dev-image:
 
 pull-action-images:
     #!/usr/bin/env bash
-    set -euo pipefail
-    while IFS= read filelineimg ; do
-        # Parse lines in the form `file:line img:tag` where tag may be in the form of `version[-variant]`
-        fileline="${filelineimg%% *}"
-        file="${fileline%%:*}"
-        line="${fileline##*:}"
-        img="${filelineimg##* }"
-        if ! docker pull "${img}" ; then
-            if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
-                echo "::error file=${file},line=${line}::Could not pull $img" >&2
-            else
-                echo "${file}:${line}: Could not pull $img" >&2
+    set -xeuo pipefail
+    {{ justfile_directory() / "action-images" }} |
+        while IFS= read filelineimg ; do
+            # Parse lines in the form `file:line img:tag` where tag may be in the form of `version[-variant]`
+            fileline="${filelineimg%% *}"
+            file="${fileline%%:*}"
+            line="${fileline##*:}"
+            img="${filelineimg##* }"
+            if ! docker pull "${img}" ; then
+                if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+                    echo "::error file=${file},line=${line}::Could not pull $img" >&2
+                else
+                    echo "${file}:${line}: Could not pull $img" >&2
+                fi
             fi
-        fi
-    done < <({{ justfile_directory() / "action-images" }})
+        done
 
 prune-action-cache path:
-    @{{ justfile_directory() / "action-docker-prune" + " " + path }}
+    jq . {{ path / "index.json" }}
+    du -sh {{ path }}
+    {{ justfile_directory() / "action-docker-prune" }} {{ path }}
+    du -sh {{ path }}

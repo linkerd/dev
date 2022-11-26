@@ -26,8 +26,8 @@ RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
 
 FROM docker.io/library/debian:bullseye-slim as jojq
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
-    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=private \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=private \
     DEBIAN_FRONTEND=noninteractive apt-get install -y jo jq
 
 # j5j Turns JSON5 into plain old JSON (i.e. to be processed by jq).
@@ -198,49 +198,49 @@ COPY --link bin/just-cargo /bin/
 ##
 
 FROM docker.io/library/golang:1.18.7 as go-delve
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+RUN --mount=type=cache,target=/go/pkg,sharing=private \
     go install github.com/go-delve/delve/cmd/dlv@latest
 
 FROM docker.io/library/golang:1.18.7 as go-impl
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+RUN --mount=type=cache,target=/go/pkg,sharing=private \
     go install github.com/josharian/impl@latest
 
 FROM docker.io/library/golang:1.18.7 as go-outline
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+RUN --mount=type=cache,target=/go/pkg,sharing=private \
     go install github.com/ramya-rao-a/go-outline@latest
 
 FROM docker.io/library/golang:1.18.7 as go-protoc
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+RUN --mount=type=cache,target=/go/pkg,sharing=private \
     go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+RUN --mount=type=cache,target=/go/pkg,sharing=private \
     go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
 
 FROM docker.io/library/golang:1.18.7 as golangci-lint
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+RUN --mount=type=cache,target=/go/pkg,sharing=private \
     go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
 FROM docker.io/library/golang:1.18.7 as gomodifytags
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+RUN --mount=type=cache,target=/go/pkg,sharing=private \
     go install github.com/fatih/gomodifytags@latest
 
 FROM docker.io/library/golang:1.18.7 as gopkgs
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+RUN --mount=type=cache,target=/go/pkg,sharing=private \
     go install github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest
 
 FROM docker.io/library/golang:1.18.7 as goplay
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+RUN --mount=type=cache,target=/go/pkg,sharing=private \
     go install github.com/haya14busa/goplay/cmd/goplay@latest
 
 FROM docker.io/library/golang:1.18.7 as gopls
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+RUN --mount=type=cache,target=/go/pkg,sharing=private \
     go install golang.org/x/tools/gopls@latest
 
 FROM docker.io/library/golang:1.18.7 as gotests
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+RUN --mount=type=cache,target=/go/pkg,sharing=private \
     go install github.com/cweill/gotests/gotests@latest
 
 FROM docker.io/library/golang:1.18.7 as gotestsum
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
+RUN --mount=type=cache,target=/go/pkg,sharing=private \
     go install gotest.tools/gotestsum@v0.4.2
 
 FROM scratch as tools-go
@@ -291,8 +291,8 @@ ENV PROTOC_NO_VENDOR=1 \
 # A Rust build environment.
 FROM docker.io/rust:1.64.0-slim-bullseye as rust
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
-    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=private \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=private \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         clang \
         cmake \
@@ -323,8 +323,8 @@ RUN rustup target add \
         armv7-unknown-linux-musleabihf \
         x86_64-unknown-linux-musl
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
-    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=private \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=private \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         g++-aarch64-linux-gnu \
         g++-arm-linux-gnueabihf \
@@ -339,8 +339,8 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
 
 FROM docker.io/library/debian:bullseye as devcontainer
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
-    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=private \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=private \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         clang \
         cmake \
@@ -371,8 +371,8 @@ RUN groupadd --gid=1000 code \
 
 # git v2.34+ has new subcommands and supports code signing via SSH.
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
-    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=private \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=private \
     DEBIAN_FRONTEND=noninteractive apt-get install -y -t bullseye-backports git
 
 # Use microsoft's Docker setup script to install the Docker CLI.
