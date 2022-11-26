@@ -1,0 +1,63 @@
+name: K3d
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/k3d.yml
+      - bin/just-k3d
+      - Dockerfile
+      - justfile
+      - k3d-images.json
+
+permissions:
+  contents: read
+
+jobs:
+  sync-k3s-images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # When a new K3s version is released, this job will fail. This is expected.
+    continue-on-error: true
+    steps:
+      - run: sudo apt-get update && sudo apt-get install -y skopeo
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+      - uses: ./actions/setup-tools
+      - run: just sync-k3s-images
+      - run: git diff --exit-code
+
+  k3s-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - run: sudo apt-get update && sudo apt-get install -y jq
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+      - name: Load k3s-images.json
+        id: matrix
+        run: |
+          (
+            echo channel="$(jq -c '.channels | keys' k3s-images.json)"
+            echo include="$(jq -c '[.digests as $digests | (.channels | to_entries[] | {channel:.key, tag:.value, digest:$digests[.value]})]' k3s-images.json)"
+          ) >> "$GITHUB_OUTPUT"
+    outputs:
+      channel: ${{ steps.matrix.outputs.channel }}
+      include: ${{ steps.matrix.outputs.include }}
+
+  k3d-create:
+    needs: k3s-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        channel: ${{ fromJson(needs.k3s-matrix.outputs.channel) }}
+        include: ${{ fromJson(needs.k3s-matrix.outputs.include) }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+      - uses: ./actions/setup-tools
+      - run: bin/just-k3d K3S_CHANNEL='${{ matrix.channel }}' create use
+      - name: Check that server tag is ${{ matrix.tag }}
+        run: |
+          tag=$(kubectl version --output=json | jq -r '.serverVersion.gitVersion | sub("\\+"; "-")')
+          if [ "$tag" != '${{ matrix.tag }}' ] ; then
+            echo "Running k3d channel=${{ matrix.channel }} expected tag '${{ matrix.tag }}' but found '$tag'" >&2
+            exit 1
+          fi

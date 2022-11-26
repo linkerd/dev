@@ -1,0 +1,21 @@
+{
+  "name": "docker.io/rancher/k3s",
+  "channels": {
+    "stable": "v1.25.4-k3s1",
+    "latest": "v1.25.4-k3s1",
+    "v1.20": "v1.20.15-k3s1",
+    "v1.21": "v1.21.14-k3s1",
+    "v1.22": "v1.22.16-k3s1",
+    "v1.23": "v1.23.14-k3s1",
+    "v1.24": "v1.24.8-k3s1",
+    "v1.25": "v1.25.4-k3s1"
+  },
+  "digests": {
+    "v1.20.15-k3s1": "sha256:0e49b63b8ee234e308ff578682f8f4f2f95bffda7ba75077e5da29548cd2a6b3",
+    "v1.21.14-k3s1": "sha256:85745e4fa94050ead9c8a935c2a2136bfdfe107c3592fb229fb6aff26640ca72",
+    "v1.22.16-k3s1": "sha256:34f190de6e0fa78de9f3e9bbc4534845db962b2f433dc53be7422cc4ee56db48",
+    "v1.23.14-k3s1": "sha256:86abd5348836cb13b3c34e619c68fa0cc3731ddc6dad458c71ecd68045bd33ea",
+    "v1.24.8-k3s1": "sha256:0f3d4abc4bd9d55af196581ecba457b83a4c799cec4d45bd2113aad42d21de44",
+    "v1.25.4-k3s1": "sha256:b85cc29c934d33c523be7b96f5751eceec80290157e2d9ed21844f33e01d0bfa"
+  }
+}

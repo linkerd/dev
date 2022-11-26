@@ -1,6 +1,6 @@
 {
     "name": "linkerd-dev",
-    "image": "ghcr.io/linkerd/dev:v35",
+    "image": "ghcr.io/linkerd/dev:v36",
     "extensions": [
         "DavidAnson.vscode-markdownlint",
         // "golang.go",
