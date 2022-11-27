@@ -34,7 +34,8 @@ build: && _clean-cache _list-if-load
         just image='{{ image }}' output='{{ output }}' \
             _build --target="$variant" \
                 {{ if version == '' { '' } else { '--tag=' + image + ':' + version + '"${variant}"' } }} \
-                {{ if DOCKER_BUILDX_CACHE_DIR == '' { '' } else { '--cache-from=type=local,src=' + DOCKER_BUILDX_CACHE_DIR } }}
+                {{ if DOCKER_BUILDX_CACHE_DIR == '' { '' } else { '--cache-from=type=local,src=' + DOCKER_BUILDX_CACHE_DIR } }} \
+                {{ if DOCKER_BUILDX_CACHE_DIR == '' { '' } else { '--cache-to=type=local,dest=' + DOCKER_BUILDX_CACHE_DIR } }}
     done
 
 _clean-cache:
