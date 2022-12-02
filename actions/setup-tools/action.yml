@@ -5,7 +5,7 @@ inputs:
   # TODO(ver): CI should validate at this version matches the most recent release tag
   version:
     description: Container image version
-    default: v35
+    default: v36
 
 runs:
   using: composite
@@ -16,8 +16,13 @@ runs:
       shell: bash
       run: |
         set -xeuo pipefail
-        dir=$(mktemp -d '${{ runner.temp }}/tools.XXX')
-        mkdir -p "$dir/build" "$dir/bin"
-        echo 'FROM ghcr.io/linkerd/dev:${{ inputs.version }}-tools' > "$dir"/build/Dockerfile
-        docker buildx build "$dir"/build --output="type=local,dest=$dir/bin"
-        echo PATH="$dir/bin:$PATH" >> "$GITHUB_ENV"
+
+        build=$(mktemp -d '${{ runner.temp }}/build.XXX')
+        echo 'FROM ghcr.io/linkerd/dev:${{ inputs.version }}-tools' > "$build"/Dockerfile
+
+        tools=$(mktemp -d '${{ runner.temp }}/tools.XXX')
+        docker buildx build "$build" --output="type=local,dest=$tools/"
+        (
+          echo K3S_IMAGES_JSON="$tools/etc/k3s-images.json"
+          echo PATH="$tools/bin:$PATH"
+        ) >> "$GITHUB_ENV"
