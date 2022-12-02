@@ -6,6 +6,7 @@ on:
       - .devcontainer/**
       - .github/workflows/devcontainer.yml
       - Dockerfile
+      - bin/*
       - justfile
 
 permissions:
@@ -15,9 +16,19 @@ jobs:
   dev-build:
     runs-on: ubuntu-latest
     steps:
+      # Cache build layers for CI. This probably should **not** be used with a
+      # workflow that publishes images where we want to get latest versions of
+      # some tools.
+      - uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
+        with:
+          path: ${{ runner.temp }}/buildx
+          key: devcontainer-${{ runner.os }}-${{ github.sha }}
+          restore-keys: devcontainer-${{ runner.os }}-
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
       - uses: ./actions/setup-tools
       - run: just build
+        env:
+          DOCKER_BUILDX_CACHE_DIR: ${{ runner.temp }}/buildx
 
   dev-shellcheck:
     runs-on: ubuntu-latest
