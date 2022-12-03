@@ -411,10 +411,6 @@ ENV PROTOC_NO_VENDOR=1 \
     PROTOC=/usr/local/bin/protoc \
     PROTOC_INCLUDE=/usr/local/include
 
-ENV GOPATH="$HOME/go"
-RUN mkdir -p "$GOPATH"
-ENV PATH="$GOPATH/bin:$PATH"
-
 COPY --link bin/just-md /usr/local/bin/
 COPY --link --from=tools /bin/* /usr/local/bin/
 COPY --link --from=tools /etc/* /usr/local/etc/
@@ -423,5 +419,9 @@ ENV K3S_IMAGES_JSON=/usr/local/etc/k3s-images.json
 ENV HOME=/home/code \
     USER=code
 USER code
+ENV GOPATH="$HOME/go"
+RUN mkdir "$GOPATH"
+ENV PATH="$GOPATH/bin:$PATH"
+
 ENTRYPOINT ["/usr/local/share/docker-init.sh"]
 CMD ["sleep", "infinity"]
