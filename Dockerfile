@@ -24,12 +24,6 @@ RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
 ## Scripting tools
 ##
 
-FROM docker.io/library/debian:bullseye-slim as jojq
-RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
-    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y jo jq
-
 # j5j Turns JSON5 into plain old JSON (i.e. to be processed by jq).
 FROM apt-base as j5j
 ARG J5J_VERSION=v0.2.0
@@ -50,7 +44,6 @@ RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linu
 
 FROM scratch as tools-script
 COPY --link --from=j5j /usr/local/bin/j5j /bin/
-COPY --link --from=jojq /usr/bin/jo /usr/bin/jq /bin/
 COPY --link --from=just /usr/local/bin/just /bin/
 COPY --link --from=yq /yq /bin/
 COPY --link bin/scurl /bin/
@@ -197,51 +190,39 @@ COPY --link bin/just-cargo /bin/
 ## Go tools
 ##
 
-FROM docker.io/library/golang:1.18.7 as go-delve
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
-    go install github.com/go-delve/delve/cmd/dlv@latest
+FROM docker.io/library/golang:1.19.4 as go-delve
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
 
-FROM docker.io/library/golang:1.18.7 as go-impl
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
-    go install github.com/josharian/impl@latest
+FROM docker.io/library/golang:1.19.4 as go-impl
+RUN go install github.com/josharian/impl@latest
 
-FROM docker.io/library/golang:1.18.7 as go-outline
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
-    go install github.com/ramya-rao-a/go-outline@latest
+FROM docker.io/library/golang:1.19.4 as go-outline
+RUN go install github.com/ramya-rao-a/go-outline@latest
 
-FROM docker.io/library/golang:1.18.7 as go-protoc
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
-    go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
-    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+FROM docker.io/library/golang:1.19.4 as go-protoc
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
 
-FROM docker.io/library/golang:1.18.7 as golangci-lint
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
-    go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+FROM docker.io/library/golang:1.19.4 as golangci-lint
+RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
-FROM docker.io/library/golang:1.18.7 as gomodifytags
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
-    go install github.com/fatih/gomodifytags@latest
+FROM docker.io/library/golang:1.19.4 as gomodifytags
+RUN go install github.com/fatih/gomodifytags@latest
 
-FROM docker.io/library/golang:1.18.7 as gopkgs
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
-    go install github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest
+FROM docker.io/library/golang:1.19.4 as gopkgs
+RUN go install github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest
 
-FROM docker.io/library/golang:1.18.7 as goplay
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
-    go install github.com/haya14busa/goplay/cmd/goplay@latest
+FROM docker.io/library/golang:1.19.4 as goplay
+RUN go install github.com/haya14busa/goplay/cmd/goplay@latest
 
-FROM docker.io/library/golang:1.18.7 as gopls
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
-    go install golang.org/x/tools/gopls@latest
+FROM docker.io/library/golang:1.19.4 as gopls
+RUN go install golang.org/x/tools/gopls@latest
 
-FROM docker.io/library/golang:1.18.7 as gotests
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
-    go install github.com/cweill/gotests/gotests@latest
+FROM docker.io/library/golang:1.19.4 as gotests
+RUN go install github.com/cweill/gotests/gotests@latest
 
-FROM docker.io/library/golang:1.18.7 as gotestsum
-RUN --mount=type=cache,target=/go/pkg,sharing=locked \
-    go install gotest.tools/gotestsum@v0.4.2
+FROM docker.io/library/golang:1.19.4 as gotestsum
+RUN go install gotest.tools/gotestsum@v0.4.2
 
 FROM scratch as tools-go
 COPY --link --from=go-delve /go/bin/dlv /bin/
@@ -279,7 +260,11 @@ COPY --link --from=tools-script /bin/* /bin/
 ##
 
 # A Go build environment.
-FROM docker.io/library/golang:1.18.7 as go
+FROM docker.io/library/golang:1.19.4 as go
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y jo jq
 COPY --link --from=tools-script /bin/* /usr/local/bin/
 COPY --link --from=tools-go /bin/* /usr/local/bin/
 COPY --link --from=protobuf /usr/local/bin/protoc /usr/local/bin/
@@ -298,10 +283,13 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         cmake \
         curl \
         git \
+        jo \
+        jq \
         libssl-dev \
         llvm \
         pkg-config
 RUN rustup component add clippy rustfmt
+COPY --link --from=tools-lint /bin/checksec /usr/local/bin/
 COPY --link --from=tools-script /bin/* /usr/local/bin/
 COPY --link --from=tools-rust /bin/* /usr/local/bin/
 COPY --link --from=protobuf /usr/local/bin/protoc /usr/local/bin/
@@ -348,6 +336,8 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         dnsutils \
         file \
         iproute2 \
+        jo \
+        jq \
         libssl-dev \
         locales \
         lsb-release \

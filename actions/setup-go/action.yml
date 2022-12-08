@@ -5,7 +5,7 @@ inputs:
   # TODO(ver): CI should validate at this version matches that in the Dockerfile
   version:
     description: Go version
-    default: 1.18.7
+    default: 1.19
 
 runs:
   using: composite
