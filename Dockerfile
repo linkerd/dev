@@ -264,7 +264,7 @@ FROM docker.io/library/golang:1.19.4 as go
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y jo jq
+    DEBIAN_FRONTEND=noninteractive apt-get install -y file jo jq
 COPY --link --from=tools-script /bin/* /usr/local/bin/
 COPY --link --from=tools-go /bin/* /usr/local/bin/
 COPY --link --from=protobuf /usr/local/bin/protoc /usr/local/bin/
@@ -282,6 +282,7 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         clang \
         cmake \
         curl \
+        file \
         git \
         jo \
         jq \
