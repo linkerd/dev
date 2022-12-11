@@ -47,10 +47,10 @@ export STRIP_aarch64_unknown_linux_musl := _strip
 export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS := _rustflags-self-contained
 
 # linux/arm/v7 + gnueabihf
-export AR_arm_unknown_linux_gnueabihf := _ar
-export CC_aarch64_unknown_linux_gnueabihf := _clang
-export CFLAGS_aarch64_unknown_linux_gnueabihf := '--sysroot=/usr/arm-linux-gnueabihf'
-export STRIP_aarch64_unknown_linux_gnueabihf := _strip
+export AR_armv7_unknown_linux_gnueabihf := _ar
+export CC_armv7_unknown_linux_gnueabihf := _clang
+export CFLAGS_armv7_unknown_linux_gnueabihf := '--sysroot=/usr/arm-linux-gnueabihf'
+export STRIP_armv7_unknown_linux_gnueabihf := _strip
 export CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER := 'arm-linux-gnueabihf-gcc'
 
 # linux/arm/v7 + musl
