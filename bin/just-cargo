@@ -37,6 +37,7 @@ export AR_aarch64_unknown_linux_gnu := _ar
 export CC_aarch64_unknown_linux_gnu := _clang
 export CFLAGS_aarch64_unknown_linux_gnu := '--sysroot=/usr/aarch64-linux-gnu'
 export STRIP_aarch64_unknown_linux_gnu := _strip
+export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER := 'aarch64-linux-gnu-gcc'
 
 # linux/arm64 + musl
 export AR_aarch64_unknown_linux_musl := _ar
@@ -50,6 +51,7 @@ export AR_arm_unknown_linux_gnueabihf := _ar
 export CC_aarch64_unknown_linux_gnueabihf := _clang
 export CFLAGS_aarch64_unknown_linux_gnueabihf := '--sysroot=/usr/arm-linux-gnueabihf'
 export STRIP_aarch64_unknown_linux_gnueabihf := _strip
+export CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER := 'arm-linux-gnueabihf-gcc'
 
 # linux/arm/v7 + musl
 export AR_armv7_unknown_linux_musleabihf := _ar
