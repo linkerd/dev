@@ -20,7 +20,7 @@ jobs:
     continue-on-error: true
     steps:
       - run: sudo apt-get update && sudo apt-get install -y skopeo
-      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+      - uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b
       - uses: ./actions/setup-tools
       - run: just sync-k3s-images
       - run: git diff --exit-code
@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - run: sudo apt-get update && sudo apt-get install -y jq
-      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+      - uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b
       - name: Load k3s-images.json
         id: matrix
         run: |
@@ -51,7 +51,7 @@ jobs:
         include: ${{ fromJson(needs.k3s-matrix.outputs.include) }}
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+      - uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b
       - uses: ./actions/setup-tools
       - run: bin/just-k3d K3S_CHANNEL='${{ matrix.channel }}' create use
       - name: Check that server tag is ${{ matrix.tag }}
