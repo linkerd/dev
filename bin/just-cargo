@@ -24,7 +24,7 @@ export RUSTFLAGS := env_var_or_default("RUSTFLAGS", "-D warnings") + if target =
         ' --codegen linker=arm-linux-gnueabihf-gcc'
     } else { '' }
 
-_llvm-version := '11'
+_llvm-version := '14'
 _clang := 'clang-' + _llvm-version
 _strip := 'llvm-strip-' + _llvm-version
 _ar := 'llvm-ar-' + _llvm-version
