@@ -28,6 +28,9 @@ runs:
           echo RUSTUP_MAX_RETRIES=10
         ) >> "$GITHUB_ENV"
 
+    - shell: bash
+      run: curl --tlsv1.2 -sSfL https://apt.llvm.org/llvm.sh | sudo bash -s 14
+
     - if: inputs.components
       shell: bash
       run: rustup component add ${{ inputs.components }}

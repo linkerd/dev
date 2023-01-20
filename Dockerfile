@@ -18,7 +18,14 @@ COPY --link bin/scurl /usr/local/bin/
 # additional apt repo to get it. We don't want to use that configuration for
 # anything else, though.
 FROM apt-base as apt-node
-RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
+RUN curl --tlsv1.2 -fsSL https://deb.nodesource.com/setup_16.x | bash -
+
+FROM apt-base as apt-llvm
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y gnupg2
+RUN curl --tlsv1.2 -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key |apt-key add -
+RUN ( echo 'deb http://apt.llvm.org/bullseye/ llvm-toolchain-bullseye-14 main' \
+    && echo 'deb-src http://apt.llvm.org/bullseye/ llvm-toolchain-bullseye-14 main' ) >> /etc/apt/sources.list
+RUN DEBIAN_FRONTEND=noninteractive apt-get update
 
 ##
 ## Scripting tools
@@ -279,7 +286,6 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        clang \
         cmake \
         curl \
         file \
@@ -287,8 +293,11 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         jo \
         jq \
         libssl-dev \
-        llvm \
         pkg-config
+RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,ro \
+    --mount=type=cache,from=apt-llvm,source=/var/cache/apt,target=/var/cache/apt \
+    --mount=type=cache,from=apt-llvm,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y clang-14 llvm-14
 RUN rustup component add clippy rustfmt
 COPY --link --from=tools-lint /bin/checksec /usr/local/bin/
 COPY --link --from=tools-script /bin/* /usr/local/bin/
@@ -331,7 +340,6 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        clang \
         cmake \
         curl \
         dnsutils \
@@ -342,7 +350,6 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         libssl-dev \
         locales \
         lsb-release \
-        llvm \
         netcat \
         pkg-config \
         skopeo \
@@ -350,7 +357,6 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         time \
         tshark \
         unzip
-
 RUN sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen \
     && locale-gen \
     && (echo "LC_ALL=en_US.UTF-8" && echo "LANGUAGE=en_US.UTF-8") >/etc/default/locale
@@ -365,6 +371,11 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
     DEBIAN_FRONTEND=noninteractive apt-get install -y -t bullseye-backports git
+
+RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,ro \
+    --mount=type=cache,from=apt-llvm,source=/var/cache/apt,target=/var/cache/apt \
+    --mount=type=cache,from=apt-llvm,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y clang-14 llvm-14
 
 # Use microsoft's Docker setup script to install the Docker CLI.
 #
