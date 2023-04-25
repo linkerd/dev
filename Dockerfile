@@ -39,13 +39,13 @@ RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5
 
 # just runs build/test recipes. Like `make` but a bit more ergonomic.
 FROM apt-base as just
-ARG JUST_VERSION=1.8.0
+ARG JUST_VERSION=1.13.0
 RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin just
 
 # yq is kind of like jq, but for YAML.
 FROM apt-base as yq
-ARG YQ_VERSION=v4.25.1
+ARG YQ_VERSION=v4.33.3
 RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" ; \
     scurl -o /yq "$url" && chmod +x /yq
 
@@ -61,7 +61,7 @@ COPY --link bin/scurl /bin/
 
 # helm templates kubernetes manifests.
 FROM apt-base as helm
-ARG HELM_VERSION=v3.10.1
+ARG HELM_VERSION=v3.11.3
 RUN url="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" ; \
     scurl "$url" | tar xzvf - --strip-components=1 -C /usr/local/bin linux-amd64/helm
 
@@ -74,13 +74,13 @@ RUN url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERS
 
 # kubectl controls kubernetes clusters.
 FROM apt-base as kubectl
-ARG KUBECTL_VERSION=v1.25.3
+ARG KUBECTL_VERSION=v1.27.1
 RUN url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" ; \
     scurl -o /usr/local/bin/kubectl "$url" && chmod +x /usr/local/bin/kubectl
 
 # k3d runs kubernetes clusters in docker.
 FROM apt-base as k3d
-ARG K3D_VERSION=v5.4.6
+ARG K3D_VERSION=v5.4.9
 RUN url="https://raw.githubusercontent.com/rancher/k3d/$K3D_VERSION/install.sh" ; \
     scurl "$url" | USE_SUDO=false K3D_INSTALL_DIR=/usr/local/bin bash
 # just-k3d is a utility that encodes many of the common k3d commands we use.
@@ -92,7 +92,7 @@ COPY --link k3s-images.json "$K3S_IMAGES_JSON"
 
 # step is a tool for managing certificates.
 FROM apt-base as step
-ARG STEP_VERSION=v0.21.0
+ARG STEP_VERSION=v0.24.3
 RUN scurl -O "https://dl.step.sm/gh-release/cli/docs-cli-install/${STEP_VERSION}/step-cli_${STEP_VERSION#v}_amd64.deb" \
     && dpkg -i "step-cli_${STEP_VERSION#v}_amd64.deb" \
     && rm "step-cli_${STEP_VERSION#v}_amd64.deb"
@@ -197,38 +197,38 @@ COPY --link bin/just-cargo /bin/
 ## Go tools
 ##
 
-FROM docker.io/library/golang:1.19.4 as go-delve
+FROM docker.io/library/golang:1.19.8 as go-delve
 RUN go install github.com/go-delve/delve/cmd/dlv@latest
 
-FROM docker.io/library/golang:1.19.4 as go-impl
+FROM docker.io/library/golang:1.19.8 as go-impl
 RUN go install github.com/josharian/impl@latest
 
-FROM docker.io/library/golang:1.19.4 as go-outline
+FROM docker.io/library/golang:1.19.8 as go-outline
 RUN go install github.com/ramya-rao-a/go-outline@latest
 
-FROM docker.io/library/golang:1.19.4 as go-protoc
+FROM docker.io/library/golang:1.19.8 as go-protoc
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
 RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
 
-FROM docker.io/library/golang:1.19.4 as golangci-lint
+FROM docker.io/library/golang:1.19.8 as golangci-lint
 RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
-FROM docker.io/library/golang:1.19.4 as gomodifytags
+FROM docker.io/library/golang:1.19.8 as gomodifytags
 RUN go install github.com/fatih/gomodifytags@latest
 
-FROM docker.io/library/golang:1.19.4 as gopkgs
+FROM docker.io/library/golang:1.19.8 as gopkgs
 RUN go install github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest
 
-FROM docker.io/library/golang:1.19.4 as goplay
+FROM docker.io/library/golang:1.19.8 as goplay
 RUN go install github.com/haya14busa/goplay/cmd/goplay@latest
 
-FROM docker.io/library/golang:1.19.4 as gopls
+FROM docker.io/library/golang:1.19.8 as gopls
 RUN go install golang.org/x/tools/gopls@latest
 
-FROM docker.io/library/golang:1.19.4 as gotests
+FROM docker.io/library/golang:1.19.8 as gotests
 RUN go install github.com/cweill/gotests/gotests@latest
 
-FROM docker.io/library/golang:1.19.4 as gotestsum
+FROM docker.io/library/golang:1.19.8 as gotestsum
 RUN go install gotest.tools/gotestsum@v0.4.2
 
 FROM scratch as tools-go
@@ -267,7 +267,7 @@ COPY --link --from=tools-script /bin/* /bin/
 ##
 
 # A Go build environment.
-FROM docker.io/library/golang:1.19.4 as go
+FROM docker.io/library/golang:1.19.8 as go
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
@@ -281,7 +281,7 @@ ENV PROTOC_NO_VENDOR=1 \
     PROTOC_INCLUDE=/usr/local/include
 
 # A Rust build environment.
-FROM docker.io/rust:1.64.0-slim-bullseye as rust
+FROM docker.io/rust:1.69.0-slim-bullseye as rust
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \

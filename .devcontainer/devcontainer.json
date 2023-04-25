@@ -1,20 +1,24 @@
 {
     "name": "linkerd-dev",
-    "image": "ghcr.io/linkerd/dev:v39",
-    "extensions": [
-        "DavidAnson.vscode-markdownlint",
-        // "golang.go",
-        "kokakiwi.vscode-just",
-        // "ms-kubernetes-tools.vscode-kubernetes-tools",
-        "NathanRidley.autotrim",
-        //"rust-lang.rust-analyzer",
-        "samverschueren.final-newline",
-        "tamasfe.even-better-toml"
-        // "zxh404.vscode-proto3"
-    ],
-    "settings": {
-        "files.associations": {
-            "just-*": "just"
+    "image": "ghcr.io/linkerd/dev:v40",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "DavidAnson.vscode-markdownlint",
+                // "golang.go",
+                "kokakiwi.vscode-just",
+                // "ms-kubernetes-tools.vscode-kubernetes-tools",
+                "NathanRidley.autotrim",
+                //"rust-lang.rust-analyzer",
+                "samverschueren.final-newline",
+                "tamasfe.even-better-toml"
+                // "zxh404.vscode-proto3"
+            ],
+            "settings": {
+                "files.associations": {
+                    "just-*": "just"
+                }
+            },
         }
     },
     "init": true,
