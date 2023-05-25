@@ -28,4 +28,8 @@ runs:
         ) >> "$GITHUB_ENV"
 
     - shell: bash
-      run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jo jq
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends jo jq
+        # override k3s-image.json with current one
+        cp k3s-images.json $K3S_IMAGES_JSON
