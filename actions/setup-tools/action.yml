@@ -22,7 +22,7 @@ runs:
 
         tools=$(mktemp -d '${{ runner.temp }}/tools.XXXX')
         docker buildx build "$build" --output="type=local,dest=$tools/"
-        find "$tools" -type f -executable
+        find "$tools" -type f
         (
           echo K3S_IMAGES_JSON="$tools/etc/k3s-images.json"
           echo PATH="$tools/bin:$PATH"
