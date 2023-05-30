@@ -5,7 +5,7 @@ inputs:
   # TODO(ver): CI should validate at this version matches the most recent release tag
   version:
     description: Container image version
-    default: v40
+    default: v41
 
 runs:
   using: composite
@@ -22,7 +22,6 @@ runs:
 
         tools=$(mktemp -d '${{ runner.temp }}/tools.XXXX')
         docker buildx build "$build" --output="type=local,dest=$tools/"
-        find "$tools" -type f
         (
           echo K3S_IMAGES_JSON="$tools/etc/k3s-images.json"
           echo PATH="$tools/bin:$PATH"
@@ -30,6 +29,3 @@ runs:
 
     - shell: bash
       run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jo jq
-
-    - shell: bash
-      run: jq . < "$K3S_IMAGES_JSON"
