@@ -27,6 +27,7 @@ runs:
           echo K3S_IMAGES_JSON="$tools/etc/k3s-images.json"
           echo PATH="$tools/bin:$PATH"
         ) >> "$GITHUB_ENV"
+        "$tools"/bin/jq . < "$tools"/etc/k3s-images.json
 
     - shell: bash
       run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jo jq
