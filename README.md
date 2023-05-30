@@ -17,7 +17,7 @@ be set in a `.devcontainer.json` file. For example:
 ```jsonc
 {
     "name": "linkerd-dev",
-    "image": "ghcr.io/linkerd/dev:v40",
+    "image": "ghcr.io/linkerd/dev:v41",
     "extensions": [
         "DavidAnson.vscode-markdownlint",
         "golang.go",
@@ -93,7 +93,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: linkerd/dev/actions/setup-tools@v40
+      - uses: linkerd/dev/actions/setup-tools@v41
       - uses: actions/checkout@v3
       - run: just-sh lint
       - run: just-dev lint-actions
@@ -112,7 +112,7 @@ building via docker.
 jobs:
   test:
     runs-on: ubuntu-latest
-    container: ghcr.io/linkerd/dev:v40-go
+    container: ghcr.io/linkerd/dev:v41-go
     steps:
       - uses: actions/checkout@v3
       - run: go mod download
@@ -137,9 +137,9 @@ jobs:
           - v1.26
     steps:
       # Install just* tooling and Go linters
-      - uses: linkerd/dev/actions/setup-tools@v40
+      - uses: linkerd/dev/actions/setup-tools@v41
       # Configure the default Go toolchain
-      - uses: linkerd/dev/actions/setup-go@v40
+      - uses: linkerd/dev/actions/setup-go@v41
       - uses: actions/checkout@v3
       - run: just-k3d K3S_CHANNEL=${{ matrix.k8s }} create
       - run: go mod download
@@ -161,7 +161,7 @@ These containers can be used in a workflow like so:
 jobs:
   test:
     runs-on: ubuntu-latest
-    container: ghcr.io/linkerd/dev:v40-rust
+    container: ghcr.io/linkerd/dev:v41-rust
     steps:
       - uses: actions/checkout@v3
       - run: just-cargo fetch
@@ -175,7 +175,7 @@ Or, to build a static binary:
 jobs:
   test:
     runs-on: ubuntu-latest
-    container: ghcr.io/linkerd/dev:v40-rust-musl
+    container: ghcr.io/linkerd/dev:v41-rust-musl
     steps:
       - uses: actions/checkout@v3
       - run: just-cargo fetch
@@ -203,9 +203,9 @@ jobs:
       K3S_CHANNEL: ${{ matrix.k8s }}
     steps:
       # Install just* tooling
-      - uses: linkerd/dev/actions/setup-tools@v40
+      - uses: linkerd/dev/actions/setup-tools@v41
       # Configure the default Rust toolchain
-      - uses: linkerd/dev/actions/setup-rust@v40
+      - uses: linkerd/dev/actions/setup-rust@v41
       - run: just-k3d create
       - run: just-cargo fetch
       - run: just-cargo test-build
