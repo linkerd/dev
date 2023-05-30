@@ -80,7 +80,7 @@ RUN url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" ;
 
 # k3d runs kubernetes clusters in docker.
 FROM apt-base as k3d
-ARG K3D_VERSION=v5.4.9
+ARG K3D_VERSION=v5.5.1
 RUN url="https://raw.githubusercontent.com/rancher/k3d/$K3D_VERSION/install.sh" ; \
     scurl "$url" | USE_SUDO=false K3D_INSTALL_DIR=/usr/local/bin bash
 # just-k3d is a utility that encodes many of the common k3d commands we use.
