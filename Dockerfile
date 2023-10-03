@@ -267,7 +267,7 @@ COPY --link --from=tools-script /bin/* /bin/
 ##
 
 # A Go build environment.
-FROM docker.io/library/golang:1.19.8 as go
+FROM docker.io/library/golang:1.21.1 as go
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
