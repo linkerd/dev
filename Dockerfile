@@ -14,11 +14,12 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y curl unzip xz-utils
 COPY --link bin/scurl /usr/local/bin/
 
-# node v16 is not available in bullseye-backports, so we need to configure an
-# additional apt repo to get it. We don't want to use that configuration for
-# anything else, though.
 FROM apt-base as apt-node
-RUN curl --tlsv1.2 -fsSL https://deb.nodesource.com/setup_16.x | bash -
+RUN apt-get install -y gnupg2
+ARG NODE_MAJOR=20
+RUN mkdir -p /etc/apt/keyrings && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" >/etc/apt/sources.list.d/nodesource.list
+RUN apt-get update && apt-get install nodejs -y
 
 FROM apt-base as apt-llvm
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y gnupg2
@@ -80,7 +81,7 @@ RUN url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" ;
 
 # k3d runs kubernetes clusters in docker.
 FROM apt-base as k3d
-ARG K3D_VERSION=v5.5.1
+ARG K3D_VERSION=v5.6.0
 RUN url="https://raw.githubusercontent.com/rancher/k3d/$K3D_VERSION/install.sh" ; \
     scurl "$url" | USE_SUDO=false K3D_INSTALL_DIR=/usr/local/bin bash
 # just-k3d is a utility that encodes many of the common k3d commands we use.
@@ -197,38 +198,38 @@ COPY --link bin/just-cargo /bin/
 ## Go tools
 ##
 
-FROM docker.io/library/golang:1.19.8 as go-delve
+FROM docker.io/library/golang:1.21.3 as go-delve
 RUN go install github.com/go-delve/delve/cmd/dlv@latest
 
-FROM docker.io/library/golang:1.19.8 as go-impl
+FROM docker.io/library/golang:1.21.3 as go-impl
 RUN go install github.com/josharian/impl@latest
 
-FROM docker.io/library/golang:1.19.8 as go-outline
+FROM docker.io/library/golang:1.21.3 as go-outline
 RUN go install github.com/ramya-rao-a/go-outline@latest
 
-FROM docker.io/library/golang:1.19.8 as go-protoc
+FROM docker.io/library/golang:1.21.3 as go-protoc
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
 RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
 
-FROM docker.io/library/golang:1.19.8 as golangci-lint
+FROM docker.io/library/golang:1.21.3 as golangci-lint
 RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
-FROM docker.io/library/golang:1.19.8 as gomodifytags
+FROM docker.io/library/golang:1.21.3 as gomodifytags
 RUN go install github.com/fatih/gomodifytags@latest
 
-FROM docker.io/library/golang:1.19.8 as gopkgs
+FROM docker.io/library/golang:1.21.3 as gopkgs
 RUN go install github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest
 
-FROM docker.io/library/golang:1.19.8 as goplay
+FROM docker.io/library/golang:1.21.3 as goplay
 RUN go install github.com/haya14busa/goplay/cmd/goplay@latest
 
-FROM docker.io/library/golang:1.19.8 as gopls
+FROM docker.io/library/golang:1.21.3 as gopls
 RUN go install golang.org/x/tools/gopls@latest
 
-FROM docker.io/library/golang:1.19.8 as gotests
+FROM docker.io/library/golang:1.21.3 as gotests
 RUN go install github.com/cweill/gotests/gotests@latest
 
-FROM docker.io/library/golang:1.19.8 as gotestsum
+FROM docker.io/library/golang:1.21.3 as gotestsum
 RUN go install gotest.tools/gotestsum@v0.4.2
 
 FROM scratch as tools-go
@@ -267,7 +268,7 @@ COPY --link --from=tools-script /bin/* /bin/
 ##
 
 # A Go build environment.
-FROM docker.io/library/golang:1.19.8 as go
+FROM docker.io/library/golang:1.21.3 as go
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
@@ -281,7 +282,7 @@ ENV PROTOC_NO_VENDOR=1 \
     PROTOC_INCLUDE=/usr/local/include
 
 # A Rust build environment.
-FROM docker.io/rust:1.69.0-slim-bullseye as rust
+FROM docker.io/rust:1.73.0-slim-bullseye as rust
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
@@ -390,7 +391,7 @@ RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/a
     scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh | bash -s
 ENV DOCKER_BUILDKIT=1
 
-ARG MARKDOWNLINT_VERSION=0.5.1
+ARG MARKDOWNLINT_VERSION=0.10.0
 RUN --mount=type=cache,from=apt-node,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-node,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,from=apt-node,source=/var/lib/apt/lists,target=/var/lib/apt/lists \
