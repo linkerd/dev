@@ -8,8 +8,8 @@
 # should not be published. Instead, these layers should be used to provide
 # cached data to individual `RUN` commands.
 
-FROM docker.io/library/debian:bullseye-slim as apt-base
-RUN echo 'deb http://deb.debian.org/debian bullseye-backports main' >>/etc/apt/sources.list
+FROM docker.io/library/debian:bookworm-slim as apt-base
+RUN echo 'deb http://deb.debian.org/debian bookworm-backports main' >>/etc/apt/sources.list
 RUN DEBIAN_FRONTEND=noninteractive apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y curl unzip xz-utils
 COPY --link bin/scurl /usr/local/bin/
@@ -17,16 +17,16 @@ COPY --link bin/scurl /usr/local/bin/
 FROM apt-base as apt-node
 RUN apt-get install -y gnupg2
 ARG NODE_MAJOR=20
-RUN mkdir -p /etc/apt/keyrings && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+RUN mkdir -p /etc/apt/keyrings && scurl https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" >/etc/apt/sources.list.d/nodesource.list
 RUN apt-get update && apt-get install nodejs -y
 
 FROM apt-base as apt-llvm
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y gnupg2
-RUN curl --tlsv1.2 -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key |apt-key add -
-RUN ( echo 'deb http://apt.llvm.org/bullseye/ llvm-toolchain-bullseye-14 main' \
-    && echo 'deb-src http://apt.llvm.org/bullseye/ llvm-toolchain-bullseye-14 main' ) >> /etc/apt/sources.list
-RUN DEBIAN_FRONTEND=noninteractive apt-get update
+# RUN DEBIAN_FRONTEND=noninteractive apt-get install -y gnupg2
+# RUN curl --tlsv1.2 -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key |apt-key add -
+# RUN ( echo 'deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-14 main' \
+#     && echo 'deb-src http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-14 main' ) >> /etc/apt/sources.list
+# RUN DEBIAN_FRONTEND=noninteractive apt-get update
 
 ##
 ## Scripting tools
@@ -282,7 +282,7 @@ ENV PROTOC_NO_VENDOR=1 \
     PROTOC_INCLUDE=/usr/local/include
 
 # A Rust build environment.
-FROM docker.io/rust:1.73.0-slim-bullseye as rust
+FROM docker.io/rust:1.73.0-slim-bookworm as rust
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
@@ -336,7 +336,7 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
 ## Devcontainer
 ##
 
-FROM docker.io/library/debian:bullseye as devcontainer
+FROM docker.io/library/debian:bookworm as devcontainer
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
@@ -351,7 +351,7 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         libssl-dev \
         locales \
         lsb-release \
-        netcat \
+        netcat-openbsd \
         pkg-config \
         skopeo \
         sudo \
@@ -371,7 +371,7 @@ RUN groupadd --gid=1000 code \
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -t bullseye-backports git
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -t bookworm-backports git
 
 RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-llvm,source=/var/cache/apt,target=/var/cache/apt \
