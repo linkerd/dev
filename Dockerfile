@@ -21,6 +21,9 @@ RUN mkdir -p /etc/apt/keyrings && scurl https://deb.nodesource.com/gpgkey/nodeso
 RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" >/etc/apt/sources.list.d/nodesource.list
 RUN apt-get update && apt-get install nodejs -y
 
+# At the moment, we can use the LLVM version shipped by Debian bookworm. If we
+# need to diverge in the future we can update this layer to use an alternate apt
+# source. See https://apt.llvm.org/.
 FROM apt-base as apt-llvm
 # RUN DEBIAN_FRONTEND=noninteractive apt-get install -y gnupg2
 # RUN curl --tlsv1.2 -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key |apt-key add -
