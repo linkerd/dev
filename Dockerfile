@@ -65,20 +65,20 @@ COPY --link bin/scurl /bin/
 
 # helm templates kubernetes manifests.
 FROM apt-base as helm
-ARG HELM_VERSION=v3.11.3
+ARG HELM_VERSION=v3.14.1
 RUN url="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" ; \
     scurl "$url" | tar xzvf - --strip-components=1 -C /usr/local/bin linux-amd64/helm
 
 
 # helm-docs generates documentation from helm charts.
 FROM apt-base as helm-docs
-ARG HELM_DOCS_VERSION=v1.11.0
+ARG HELM_DOCS_VERSION=v1.12.0
 RUN url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERSION/helm-docs_${HELM_DOCS_VERSION#v}_Linux_x86_64.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin helm-docs
 
 # kubectl controls kubernetes clusters.
 FROM apt-base as kubectl
-ARG KUBECTL_VERSION=v1.27.1
+ARG KUBECTL_VERSION=v1.29.2
 RUN url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" ; \
     scurl -o /usr/local/bin/kubectl "$url" && chmod +x /usr/local/bin/kubectl
 
@@ -96,7 +96,7 @@ COPY --link k3s-images.json "$K3S_IMAGES_JSON"
 
 # step is a tool for managing certificates.
 FROM apt-base as step
-ARG STEP_VERSION=v0.24.3
+ARG STEP_VERSION=v0.25.2
 RUN scurl -O "https://dl.step.sm/gh-release/cli/docs-cli-install/${STEP_VERSION}/step-cli_${STEP_VERSION#v}_amd64.deb" \
     && dpkg -i "step-cli_${STEP_VERSION#v}_amd64.deb" \
     && rm "step-cli_${STEP_VERSION#v}_amd64.deb"
