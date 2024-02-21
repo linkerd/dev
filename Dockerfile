@@ -43,7 +43,7 @@ RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5
 
 # just runs build/test recipes. Like `make` but a bit more ergonomic.
 FROM apt-base as just
-ARG JUST_VERSION=1.13.0
+ARG JUST_VERSION=1.24.0
 RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin just
 
