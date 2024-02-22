@@ -5,7 +5,7 @@ inputs:
   # TODO(ver): CI should validate at this version matches the most recent release tag
   version:
     description: Container image version
-    default: v41
+    default: v43
 
 runs:
   using: composite
