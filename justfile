@@ -1,5 +1,6 @@
 version := ''
 image := 'ghcr.io/linkerd/dev'
+platform := 'linux/amd64,linux/arm64'
 _tag :=  if version != '' { "--tag=" + image + ':' + version } else { "" }
 
 k3s-image := 'docker.io/rancher/k3s'
@@ -27,6 +28,7 @@ build: && _list-if-load
         just output='{{ output }}' \
              image='{{ image }}' \
              version='{{ version }}' \
+             platform='{{ platform }}' \
             _target "$tgt"
     done
 
@@ -37,6 +39,7 @@ _list-if-load:
         just image='{{ image }}' \
              targets='{{ targets }}' \
              version='{{ version }}' \
+             platform='{{ platform }}' \
              list
      fi
 
@@ -91,12 +94,14 @@ _target target='':
     @just \
         output='{{ output }}' \
         image='{{ image }}' \
+        platform='{{ platform }}' \
         _build --target='{{ target }}' \
             {{ if version == '' { '' } else { '--tag=' + image + ':' + version + if target == 'devcontainer' { '' } else { '-' + target } } }}
 
 # Build the devcontainer image
 _build *args='':
     docker buildx build . {{ _tag }} --pull \
+        --platform='{{ platform }}' \
         --progress='{{ DOCKER_PROGRESS }}' \
         --output='{{ output }}' \
         {{ args }}
