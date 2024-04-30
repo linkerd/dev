@@ -36,21 +36,21 @@ FROM apt-base as apt-llvm
 ##
 
 # j5j Turns JSON5 into plain old JSON (i.e. to be processed by jq).
-FROM apt-base as j5j
+FROM docker.io/library/rust:slim-bookworm as j5j
 ARG J5J_VERSION=v0.2.0
-RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
-    scurl "$url" | tar zvxf - -C /usr/local/bin j5j
+RUN cargo install --git='https://github.com/olix0r/j5j.git' --tag="$J5J_VERSION" \
+    && mv "$(which j5j)" /usr/local/bin/j5j
 
 # just runs build/test recipes. Like `make` but a bit more ergonomic.
 FROM apt-base as just
 ARG JUST_VERSION=1.24.0
-RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
+RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-$(uname -m)-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin just
 
 # yq is kind of like jq, but for YAML.
 FROM apt-base as yq
 ARG YQ_VERSION=v4.33.3
-RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" ; \
+RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_$(uname -m | sed 's#x86_64#amd64#g; s#aarch64#arm64#g')" ; \
     scurl -o /yq "$url" && chmod +x /yq
 
 FROM scratch as tools-script
@@ -66,20 +66,20 @@ COPY --link bin/scurl /bin/
 # helm templates kubernetes manifests.
 FROM apt-base as helm
 ARG HELM_VERSION=v3.14.1
-RUN url="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" ; \
-    scurl "$url" | tar xzvf - --strip-components=1 -C /usr/local/bin linux-amd64/helm
+RUN url="https://get.helm.sh/helm-${HELM_VERSION}-linux-$(uname -m | sed 's#x86_64#amd64#g; s#aarch64#arm64#g').tar.gz" ; \
+    scurl "$url" | tar xzvf - --strip-components=1 -C /usr/local/bin "linux-$(uname -m | sed 's#x86_64#amd64#g; s#aarch64#arm64#g')"/helm
 
 
 # helm-docs generates documentation from helm charts.
 FROM apt-base as helm-docs
 ARG HELM_DOCS_VERSION=v1.12.0
-RUN url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERSION/helm-docs_${HELM_DOCS_VERSION#v}_Linux_x86_64.tar.gz" ; \
+RUN url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERSION/helm-docs_${HELM_DOCS_VERSION#v}_Linux_$(uname -m | sed 's#aarch64#arm64#g').tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin helm-docs
 
 # kubectl controls kubernetes clusters.
 FROM apt-base as kubectl
 ARG KUBECTL_VERSION=v1.29.2
-RUN url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" ; \
+RUN url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/$(uname -m | sed 's#x86_64#amd64#g; s#aarch64#arm64#g')/kubectl" ; \
     scurl -o /usr/local/bin/kubectl "$url" && chmod +x /usr/local/bin/kubectl
 
 # k3d runs kubernetes clusters in docker.
@@ -97,9 +97,9 @@ COPY --link k3s-images.json "$K3S_IMAGES_JSON"
 # step is a tool for managing certificates.
 FROM apt-base as step
 ARG STEP_VERSION=v0.25.2
-RUN scurl -O "https://dl.step.sm/gh-release/cli/docs-cli-install/${STEP_VERSION}/step-cli_${STEP_VERSION#v}_amd64.deb" \
-    && dpkg -i "step-cli_${STEP_VERSION#v}_amd64.deb" \
-    && rm "step-cli_${STEP_VERSION#v}_amd64.deb"
+RUN scurl -O "https://dl.step.sm/gh-release/cli/docs-cli-install/${STEP_VERSION}/step-cli_${STEP_VERSION#v}_$(uname -m | sed 's#x86_64#amd64#g; s#aarch64#arm64#g').deb" \
+    && dpkg -i "step-cli_${STEP_VERSION#v}_$(uname -m | sed 's#x86_64#amd64#g; s#aarch64#arm64#g').deb" \
+    && rm "step-cli_${STEP_VERSION#v}_$(uname -m | sed 's#x86_64#amd64#g; s#aarch64#arm64#g').deb"
 
 FROM scratch as tools-k8s
 COPY --link --from=helm /usr/local/bin/helm /bin/
@@ -117,7 +117,7 @@ COPY --link --from=step /usr/bin/step-cli /bin/
 # actionlint lints github actions workflows.
 FROM apt-base as actionlint
 ARG ACTIONLINT_VERSION=v1.6.26
-RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" ; \
+RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_$(uname -m | sed 's#x86_64#amd64#g; s#aarch64#arm64#g').tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin actionlint
 
 # checksec checks binaries for security issues.
@@ -129,7 +129,7 @@ RUN url="https://raw.githubusercontent.com/slimm609/checksec.sh/${CHECKSEC_VERSI
 # shellcheck lints shell scripts.
 FROM apt-base as shellcheck
 ARG SHELLCHECK_VERSION=v0.9.0
-RUN url="https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" ; \
+RUN url="https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.$(uname -m).tar.xz" ; \
     scurl "$url" | tar xJvf - --strip-components=1 -C /usr/local/bin "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
 COPY --link bin/just-sh /usr/local/bin/
 
@@ -145,7 +145,7 @@ COPY --link bin/action-* bin/just-dev bin/just-sh /bin/
 
 FROM apt-base as protobuf
 ARG PROTOC_VERSION=v3.20.3
-RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/protoc-${PROTOC_VERSION#v}-linux-$(uname -m).zip" ; \
+RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/protoc-${PROTOC_VERSION#v}-linux-$(uname -m | sed 's#aarch64#aarch_64#g').zip" ; \
     cd $(mktemp -d) && \
     scurl -o protoc.zip  "$url" && \
     unzip protoc.zip bin/protoc include/** && \
@@ -159,27 +159,28 @@ RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/pr
 ##
 
 # cargo-action-fmt formats `cargo build` JSON output to Github Actions annotations.
-FROM apt-base as cargo-action-fmt
+FROM docker.io/library/rust:slim-bookworm as cargo-action-fmt
+ENV RUSTFLAGS='-A dead_code'
 ARG CARGO_ACTION_FMT_VERSION=1.0.2
-RUN url="https://github.com/olix0r/cargo-action-fmt/releases/download/release%2Fv${CARGO_ACTION_FMT_VERSION}/cargo-action-fmt-x86_64-unknown-linux-gnu" ; \
-    scurl -o /usr/local/bin/cargo-action-fmt "$url" && chmod +x /usr/local/bin/cargo-action-fmt
+RUN cargo install --git='https://github.com/olix0r/cargo-action-fmt.git' --tag="v$CARGO_ACTION_FMT_VERSION" \
+    && mv "$(which cargo-action-fmt)" /usr/local/bin/cargo-action-fmt
 
 # cargo-deny checks cargo dependencies for licensing and RUSTSEC security issues.
-FROM apt-base as cargo-deny
+FROM docker.io/library/rust:slim-bookworm as cargo-deny
 ARG CARGO_DENY_VERSION=0.14.11
-RUN url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
-    scurl "$url" | tar zvxf - --strip-components=1 -C /usr/local/bin "cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl/cargo-deny"
+RUN cargo install --git='https://github.com/EmbarkStudios/cargo-deny.git' --tag="$CARGO_DENY_VERSION" cargo-deny \
+    && mv "$(which cargo-deny)" /usr/local/bin/cargo-deny
 
 # cargo-nextest is a nicer test runner.
 FROM apt-base as cargo-nextest
 ARG NEXTEST_VERSION=0.9.67
-RUN url="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-${NEXTEST_VERSION}/cargo-nextest-${NEXTEST_VERSION}-x86_64-unknown-linux-gnu.tar.gz" ; \
+RUN url="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-${NEXTEST_VERSION}/cargo-nextest-${NEXTEST_VERSION}-$(uname -m)-unknown-linux-gnu.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin cargo-nextest
 
 # cargo-tarpaulin is a code coverage tool.
 FROM apt-base as cargo-tarpaulin
 ARG CARGO_TARPAULIN_VERSION=0.27.3
-RUN url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAULIN_VERSION}/cargo-tarpaulin-x86_64-unknown-linux-musl.tar.gz" ;\
+RUN url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAULIN_VERSION}/cargo-tarpaulin-$(uname -m)-unknown-linux-musl.tar.gz" ;\
     scurl "$url" | tar xzvf - -C /usr/local/bin cargo-tarpaulin
 
 FROM scratch as tools-rust
@@ -353,6 +354,7 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         time \
         tshark \
         unzip
+
 RUN sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen \
     && locale-gen \
     && (echo "LC_ALL=en_US.UTF-8" && echo "LANGUAGE=en_US.UTF-8") >/etc/default/locale
@@ -383,7 +385,10 @@ RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/a
     --mount=type=cache,id=apt-docker,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,id=apt-docker,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists \
     --mount=type=bind,from=tools,source=/bin/scurl,target=/usr/local/bin/scurl \
-    scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh | bash -s
+    # prevent pip from tanking the build on arm64 targets \
+    if [[ "$(uname -m)" == "aarch64" ]]; then apt-get install -y pipx docker-compose; fi; \
+    scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh  | bash -s \
+
 ENV DOCKER_BUILDKIT=1
 
 ARG MARKDOWNLINT_VERSION=0.10.0
