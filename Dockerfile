@@ -9,7 +9,7 @@
 # cached data to individual `RUN` commands.
 
 FROM docker.io/library/debian:bookworm-slim as apt-base
-RUN echo 'deb http://deb.debian.org/debian bookworm-backports main' >>/etc/apt/sources.list
+RUN echo 'deb https://deb.debian.org/debian bookworm-backports main' >>/etc/apt/sources.list
 RUN DEBIAN_FRONTEND=noninteractive apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y curl unzip xz-utils
 COPY --link bin/scurl /usr/local/bin/
@@ -166,10 +166,10 @@ RUN cargo install --git='https://github.com/olix0r/cargo-action-fmt.git' --tag="
     && mv "$(which cargo-action-fmt)" /usr/local/bin/cargo-action-fmt
 
 # cargo-deny checks cargo dependencies for licensing and RUSTSEC security issues.
-FROM docker.io/library/rust:slim-bookworm as cargo-deny
-ARG CARGO_DENY_VERSION=0.14.11
-RUN cargo install --git='https://github.com/EmbarkStudios/cargo-deny.git' --tag="$CARGO_DENY_VERSION" cargo-deny \
-    && mv "$(which cargo-deny)" /usr/local/bin/cargo-deny
+FROM apt-base as cargo-deny
+ARG CARGO_DENY_VERSION=0.14.23
+RUN url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/cargo-deny-${CARGO_DENY_VERSION}-$(uname -m)-unknown-linux-musl.tar.gz" ; \
+    scurl "$url" | tar zvxf - --strip-components=1 -C /usr/local/bin "cargo-deny-${CARGO_DENY_VERSION}-$(uname -m)-unknown-linux-musl/cargo-deny"
 
 # cargo-nextest is a nicer test runner.
 FROM apt-base as cargo-nextest
@@ -333,6 +333,9 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
 ##
 
 FROM docker.io/library/debian:bookworm as devcontainer
+
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
@@ -380,14 +383,29 @@ RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,ro \
 # A distinct cache is used because the script adds an apt repo that we don't
 # want to pull in for other layers.
 #
-# TODO(ver): replace this with a devcontainer feature?
+# NOTE: Per @ver's previous note here, this can in fact be replaced with the
+# "docker-outside-of-docker" devcontainer feature. Doing so requires that the
+# feature be added to the `devcontainer.json` file of every repo that uses this
+# one as a base. The feature performs a check for existing docker installations
+# before actually doing anything though, so although this step *should* be removed
+# once all the "downstream" repos are updated to use the feature instead, it won't
+# cause problems in the interim if it's left as is.
+#
+# TODO(the-wondersmith): remove this step entirely once all downstream repos are updated
+ARG INSTALL_DOCKER=true
 RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/apt \
     --mount=type=cache,id=apt-docker,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,id=apt-docker,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists \
     --mount=type=bind,from=tools,source=/bin/scurl,target=/usr/local/bin/scurl \
-    # prevent pip from tanking the build on arm64 targets \
-    if [[ "$(uname -m)" == "aarch64" ]]; then apt-get install -y pipx docker-compose; fi; \
-    scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh  | bash -s \
+    if [[ echo "${INSTALL_DOCKER}" | grep -qiE "^(true|yes|1)$" ]]; then \
+        # prevent pip from tanking the build on arm64 targets \
+        if [[ "$(uname -m)" == "aarch64" ]]; then \
+            apt-get install -y pipx docker-compose; \
+        fi; \
+        scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh  | bash -s ; \
+    else; \
+        echo "SKIPPING DOCKER CLI INSTALL"; \
+    fi
 
 ENV DOCKER_BUILDKIT=1
 
