@@ -1,46 +1,49 @@
 {
-    "name": "linkerd-dev",
-    "image": "ghcr.io/linkerd/dev:v43",
-    "customizations": {
-        "vscode": {
-            "extensions": [
-                "DavidAnson.vscode-markdownlint",
-                // "golang.go",
-                "kokakiwi.vscode-just",
-                // "ms-kubernetes-tools.vscode-kubernetes-tools",
-                "NathanRidley.autotrim",
-                //"rust-lang.rust-analyzer",
-                "samverschueren.final-newline",
-                "tamasfe.even-better-toml"
-                // "zxh404.vscode-proto3"
-            ],
-            "settings": {
-                "files.associations": {
-                    "just-*": "just"
-                }
-            },
+  "name": "linkerd-dev",
+  "image": "ghcr.io/linkerd/dev:v43",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "moby": false,
+      "installDockerBuildx": true,
+      "dockerDashComposeVersion": "v2",
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "DavidAnson.vscode-markdownlint",
+        // "golang.go",
+        "kokakiwi.vscode-just",
+        // "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "NathanRidley.autotrim",
+        //"rust-lang.rust-analyzer",
+        "samverschueren.final-newline",
+        "tamasfe.even-better-toml"
+        // "zxh404.vscode-proto3"
+      ],
+      "settings": {
+        "files.associations": {
+          "just-*": "just"
         }
-    },
-    "init": true,
-    "runArgs": [
-        // Limit container memory usage.
-        "--memory=12g",
-        "--memory-swap=12g",
-        // Use the host network so we can access k3d, etc.
-        "--net=host"
-    ],
-    "overrideCommand": false,
-    "remoteUser": "code",
-    "mounts": [
-        {
-            "source": "/var/run/docker.sock",
-            "target": "/var/run/docker-host.sock",
-            "type": "bind"
-        },
-        {
-            "source": "${localEnv:HOME}/.docker",
-            "target": "/home/code/.docker",
-            "type": "bind"
-        }
-    ]
+      },
+    }
+  },
+  "init": true,
+  "runArgs": [
+    // Limit container memory usage.
+    "--memory=12g",
+    "--memory-swap=12g",
+    // Use the host network so we can access k3d, etc.
+    "--net=host"
+  ],
+  "overrideCommand": false,
+  "remoteUser": "code",
+  "mounts": [
+    {
+      "source": "${localEnv:HOME}/.docker",
+      "target": "/home/code/.docker",
+      "type": "bind"
+    }
+  ]
 }
