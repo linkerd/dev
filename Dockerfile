@@ -8,8 +8,7 @@
 # should not be published. Instead, these layers should be used to provide
 # cached data to individual `RUN` commands.
 
-FROM docker.io/library/debian:bookworm-slim as apt-base
-RUN echo 'deb https://deb.debian.org/debian bookworm-backports main' >>/etc/apt/sources.list
+FROM docker.io/library/debian:bookworm-backports as apt-base
 RUN DEBIAN_FRONTEND=noninteractive apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y curl unzip xz-utils
 COPY --link bin/scurl /usr/local/bin/
@@ -332,7 +331,7 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
 ## Devcontainer
 ##
 
-FROM docker.io/library/debian:bookworm as devcontainer
+FROM docker.io/library/debian:bookworm-backports as devcontainer
 
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
@@ -397,13 +396,13 @@ RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/a
     --mount=type=cache,id=apt-docker,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,id=apt-docker,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists \
     --mount=type=bind,from=tools,source=/bin/scurl,target=/usr/local/bin/scurl \
-    if [[ echo "${INSTALL_DOCKER}" | grep -qiE "^(true|yes|1)$" ]]; then \
+    if echo "${INSTALL_DOCKER}" | grep -qiE "^(true|yes|1)$"; then \
         # prevent pip from tanking the build on arm64 targets \
         if [[ "$(uname -m)" == "aarch64" ]]; then \
             apt-get install -y pipx docker-compose; \
         fi; \
         scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh  | bash -s ; \
-    else; \
+    else \
         echo "SKIPPING DOCKER CLI INSTALL"; \
     fi
 
