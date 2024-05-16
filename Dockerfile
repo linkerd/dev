@@ -8,16 +8,15 @@
 # should not be published. Instead, these layers should be used to provide
 # cached data to individual `RUN` commands.
 
-FROM docker.io/library/debian:bookworm-slim as apt-base
-RUN echo 'deb http://deb.debian.org/debian bookworm-backports main' >>/etc/apt/sources.list
+FROM docker.io/library/debian:bookworm-backports as apt-base
 RUN DEBIAN_FRONTEND=noninteractive apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y curl unzip xz-utils
 COPY --link bin/scurl /usr/local/bin/
 
 FROM apt-base as apt-node
 RUN apt-get install -y gnupg2
-ARG NODE_MAJOR=20
 RUN mkdir -p /etc/apt/keyrings && scurl https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+ARG NODE_MAJOR=20
 RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" >/etc/apt/sources.list.d/nodesource.list
 RUN apt-get update && apt-get install nodejs -y
 
@@ -31,30 +30,36 @@ FROM apt-base as apt-llvm
 #     && echo 'deb-src http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-14 main' ) >> /etc/apt/sources.list
 # RUN DEBIAN_FRONTEND=noninteractive apt-get update
 
+# Some tools we want to include in the built images don't offer precompiled
+# multi-arch binaries, so they'll need to be built on demand. Luckily, all
+# of the tools that currently fit this description are written in rust, so
+# we can use a single base image as the build environment for them all.
+FROM docker.io/library/rust:alpine as rust-tool-factory
+RUN apk add --no-cache musl-dev
+
 ##
 ## Scripting tools
 ##
 
 # j5j Turns JSON5 into plain old JSON (i.e. to be processed by jq).
-FROM apt-base as j5j
+FROM rust-tool-factory as j5j
 ARG J5J_VERSION=v0.2.0
-RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
-    scurl "$url" | tar zvxf - -C /usr/local/bin j5j
+RUN cargo install --git='https://github.com/olix0r/j5j.git' --tag="${J5J_VERSION}" --profile=release j5j
 
 # just runs build/test recipes. Like `make` but a bit more ergonomic.
 FROM apt-base as just
 ARG JUST_VERSION=1.24.0
-RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
+RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-$(uname -m)-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin just
 
 # yq is kind of like jq, but for YAML.
 FROM apt-base as yq
 ARG YQ_VERSION=v4.33.3
-RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" ; \
+RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_$(uname -m | sed 's#x86_64#amd64#g; s#aarch64#arm64#g')" ; \
     scurl -o /yq "$url" && chmod +x /yq
 
 FROM scratch as tools-script
-COPY --link --from=j5j /usr/local/bin/j5j /bin/
+COPY --link --from=j5j /usr/local/cargo/bin/j5j /bin/
 COPY --link --from=just /usr/local/bin/just /bin/
 COPY --link --from=yq /yq /bin/
 COPY --link bin/scurl /bin/
@@ -66,20 +71,20 @@ COPY --link bin/scurl /bin/
 # helm templates kubernetes manifests.
 FROM apt-base as helm
 ARG HELM_VERSION=v3.14.1
-RUN url="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" ; \
-    scurl "$url" | tar xzvf - --strip-components=1 -C /usr/local/bin linux-amd64/helm
+RUN url="https://get.helm.sh/helm-${HELM_VERSION}-linux-$(uname -m | sed 's#x86_64#amd64#g; s#aarch64#arm64#g').tar.gz" ; \
+    scurl "$url" | tar xzvf - --strip-components=1 -C /usr/local/bin "linux-$(uname -m | sed 's#x86_64#amd64#g; s#aarch64#arm64#g')"/helm
 
 
 # helm-docs generates documentation from helm charts.
 FROM apt-base as helm-docs
 ARG HELM_DOCS_VERSION=v1.12.0
-RUN url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERSION/helm-docs_${HELM_DOCS_VERSION#v}_Linux_x86_64.tar.gz" ; \
+RUN url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERSION/helm-docs_${HELM_DOCS_VERSION#v}_Linux_$(uname -m | sed 's#aarch64#arm64#g').tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin helm-docs
 
 # kubectl controls kubernetes clusters.
 FROM apt-base as kubectl
 ARG KUBECTL_VERSION=v1.29.2
-RUN url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" ; \
+RUN url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/$(uname -m | sed 's#x86_64#amd64#g; s#aarch64#arm64#g')/kubectl" ; \
     scurl -o /usr/local/bin/kubectl "$url" && chmod +x /usr/local/bin/kubectl
 
 # k3d runs kubernetes clusters in docker.
@@ -97,9 +102,9 @@ COPY --link k3s-images.json "$K3S_IMAGES_JSON"
 # step is a tool for managing certificates.
 FROM apt-base as step
 ARG STEP_VERSION=v0.25.2
-RUN scurl -O "https://dl.step.sm/gh-release/cli/docs-cli-install/${STEP_VERSION}/step-cli_${STEP_VERSION#v}_amd64.deb" \
-    && dpkg -i "step-cli_${STEP_VERSION#v}_amd64.deb" \
-    && rm "step-cli_${STEP_VERSION#v}_amd64.deb"
+RUN scurl -O "https://dl.step.sm/gh-release/cli/docs-cli-install/${STEP_VERSION}/step-cli_${STEP_VERSION#v}_$(uname -m | sed 's#x86_64#amd64#g; s#aarch64#arm64#g').deb" \
+    && dpkg -i "step-cli_${STEP_VERSION#v}_$(uname -m | sed 's#x86_64#amd64#g; s#aarch64#arm64#g').deb" \
+    && rm "step-cli_${STEP_VERSION#v}_$(uname -m | sed 's#x86_64#amd64#g; s#aarch64#arm64#g').deb"
 
 FROM scratch as tools-k8s
 COPY --link --from=helm /usr/local/bin/helm /bin/
@@ -117,7 +122,7 @@ COPY --link --from=step /usr/bin/step-cli /bin/
 # actionlint lints github actions workflows.
 FROM apt-base as actionlint
 ARG ACTIONLINT_VERSION=v1.6.26
-RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" ; \
+RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_$(uname -m | sed 's#x86_64#amd64#g; s#aarch64#arm64#g').tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin actionlint
 
 # checksec checks binaries for security issues.
@@ -129,7 +134,7 @@ RUN url="https://raw.githubusercontent.com/slimm609/checksec.sh/${CHECKSEC_VERSI
 # shellcheck lints shell scripts.
 FROM apt-base as shellcheck
 ARG SHELLCHECK_VERSION=v0.9.0
-RUN url="https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" ; \
+RUN url="https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.$(uname -m).tar.xz" ; \
     scurl "$url" | tar xJvf - --strip-components=1 -C /usr/local/bin "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
 COPY --link bin/just-sh /usr/local/bin/
 
@@ -145,7 +150,7 @@ COPY --link bin/action-* bin/just-dev bin/just-sh /bin/
 
 FROM apt-base as protobuf
 ARG PROTOC_VERSION=v3.20.3
-RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/protoc-${PROTOC_VERSION#v}-linux-$(uname -m).zip" ; \
+RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/protoc-${PROTOC_VERSION#v}-linux-$(uname -m | sed 's#aarch64#aarch_64#g').zip" ; \
     cd $(mktemp -d) && \
     scurl -o protoc.zip  "$url" && \
     unzip protoc.zip bin/protoc include/** && \
@@ -159,31 +164,31 @@ RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/pr
 ##
 
 # cargo-action-fmt formats `cargo build` JSON output to Github Actions annotations.
-FROM apt-base as cargo-action-fmt
-ARG CARGO_ACTION_FMT_VERSION=1.0.2
-RUN url="https://github.com/olix0r/cargo-action-fmt/releases/download/release%2Fv${CARGO_ACTION_FMT_VERSION}/cargo-action-fmt-x86_64-unknown-linux-gnu" ; \
-    scurl -o /usr/local/bin/cargo-action-fmt "$url" && chmod +x /usr/local/bin/cargo-action-fmt
+FROM rust-tool-factory as cargo-action-fmt
+ENV RUSTFLAGS='-A dead_code'
+ARG CARGO_ACTION_FMT_VERSION=v1.0.2
+RUN cargo install --git='https://github.com/olix0r/cargo-action-fmt.git' --tag="${CARGO_ACTION_FMT_VERSION}" --profile=release cargo-action-fmt
 
 # cargo-deny checks cargo dependencies for licensing and RUSTSEC security issues.
 FROM apt-base as cargo-deny
-ARG CARGO_DENY_VERSION=0.14.11
-RUN url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
-    scurl "$url" | tar zvxf - --strip-components=1 -C /usr/local/bin "cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl/cargo-deny"
+ARG CARGO_DENY_VERSION=0.14.23
+RUN url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/cargo-deny-${CARGO_DENY_VERSION}-$(uname -m)-unknown-linux-musl.tar.gz" ; \
+    scurl "$url" | tar zvxf - --strip-components=1 -C /usr/local/bin "cargo-deny-${CARGO_DENY_VERSION}-$(uname -m)-unknown-linux-musl/cargo-deny"
 
 # cargo-nextest is a nicer test runner.
 FROM apt-base as cargo-nextest
 ARG NEXTEST_VERSION=0.9.67
-RUN url="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-${NEXTEST_VERSION}/cargo-nextest-${NEXTEST_VERSION}-x86_64-unknown-linux-gnu.tar.gz" ; \
+RUN url="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-${NEXTEST_VERSION}/cargo-nextest-${NEXTEST_VERSION}-$(uname -m)-unknown-linux-gnu.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin cargo-nextest
 
 # cargo-tarpaulin is a code coverage tool.
 FROM apt-base as cargo-tarpaulin
 ARG CARGO_TARPAULIN_VERSION=0.27.3
-RUN url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAULIN_VERSION}/cargo-tarpaulin-x86_64-unknown-linux-musl.tar.gz" ;\
+RUN url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAULIN_VERSION}/cargo-tarpaulin-$(uname -m)-unknown-linux-musl.tar.gz" ;\
     scurl "$url" | tar xzvf - -C /usr/local/bin cargo-tarpaulin
 
 FROM scratch as tools-rust
-COPY --link --from=cargo-action-fmt /usr/local/bin/cargo-action-fmt /bin/
+COPY --link --from=cargo-action-fmt /usr/local/cargo/bin/cargo-action-fmt /bin/
 COPY --link --from=cargo-deny /usr/local/bin/cargo-deny /bin/
 COPY --link --from=cargo-nextest /usr/local/bin/cargo-nextest /bin/
 COPY --link --from=cargo-tarpaulin /usr/local/bin/cargo-tarpaulin /bin/
@@ -241,8 +246,9 @@ COPY --link --from=gotests /go/bin/gotests /bin/
 COPY --link --from=gotestsum /go/bin/gotestsum /bin/
 
 # Networking utilities
-FROM scratch as tools-net
-COPY --link --from=ghcr.io/olix0r/hokay:v0.2.2 /hokay /bin/
+FROM rust-tool-factory as tools-net
+ARG HOKAY_VERSION=v0.2.2
+RUN cargo install --git='https://github.com/olix0r/hokay.git' --tag="release/${HOKAY_VERSION}" --profile=release hokay
 
 ##
 ## All Tools
@@ -254,7 +260,7 @@ COPY --link --from=tools-k8s /bin/* /bin/
 COPY --link --from=tools-k8s /etc/* /etc/
 ENV K3S_IMAGES_JSON=/etc/k3s-images.json
 COPY --link --from=tools-lint /bin/* /bin/
-COPY --link --from=tools-net /bin/* /bin/
+COPY --link --from=tools-net /usr/local/cargo/bin/hokay /bin/
 COPY --link --from=tools-rust /bin/* /bin/
 COPY --link --from=tools-script /bin/* /bin/
 
@@ -331,7 +337,10 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
 ## Devcontainer
 ##
 
-FROM docker.io/library/debian:bookworm as devcontainer
+FROM docker.io/library/debian:bookworm-backports as devcontainer
+
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
@@ -353,9 +362,10 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         time \
         tshark \
         unzip
+
 RUN sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen \
     && locale-gen \
-    && (echo "LC_ALL=en_US.UTF-8" && echo "LANGUAGE=en_US.UTF-8") >/etc/default/locale
+    && (echo "LC_ALL=en_US.UTF-8" && echo "LANGUAGE=en_US.UTF-8") > /etc/default/locale
 
 RUN groupadd --gid=1000 code \
     && useradd --create-home --uid=1000 --gid=1000 code \
@@ -373,18 +383,29 @@ RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-llvm,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
     DEBIAN_FRONTEND=noninteractive apt-get install -y clang-14 llvm-14
 
-# Use microsoft's Docker setup script to install the Docker CLI.
+# Install Docker using the script directly from the "official" `docker-outside-of-docker`
+# DevContainer feature repo.
+#
+# ref: https://github.com/devcontainers/features/tree/main/src/docker-outside-of-docker
 #
 # A distinct cache is used because the script adds an apt repo that we don't
 # want to pull in for other layers.
 #
-# TODO(ver): replace this with a devcontainer feature?
+## TODO(the-wondersmith): replace this with the devcontainer feature directly
+ENV DOCKER_BUILDKIT=1
 RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/apt \
     --mount=type=cache,id=apt-docker,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,id=apt-docker,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists \
     --mount=type=bind,from=tools,source=/bin/scurl,target=/usr/local/bin/scurl \
-    scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh | bash -s
-ENV DOCKER_BUILDKIT=1
+    scurl https://raw.githubusercontent.com/devcontainers/features/main/src/docker-outside-of-docker/install.sh \
+    | env USE_MOBY=false INSTALL_DOCKER_BUILDX=true DOCKER_DASH_COMPOSE_VERSION=v2 bash -s
+
+COPY <<"EOF" /usr/local/share/docker-init.sh
+#!/usr/bin/env bash
+exec "$@"
+EOF
+
+RUN chmod +x /usr/local/share/docker-init.sh
 
 ARG MARKDOWNLINT_VERSION=0.10.0
 RUN --mount=type=cache,from=apt-node,source=/etc/apt,target=/etc/apt,ro \
