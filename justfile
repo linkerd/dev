@@ -1,6 +1,6 @@
 version := ''
 image := 'ghcr.io/linkerd/dev'
-platform := 'linux/amd64,linux/arm64'
+platform := `echo "linux/$(uname -m | sed 's#x86_64#amd64#g; s#aarch64#arm64#g')"`
 _tag :=  if version != '' { "--tag=" + image + ':' + version } else { "" }
 
 k3s-image := 'docker.io/rancher/k3s'
@@ -21,15 +21,15 @@ export DOCKER_PROGRESS := env_var_or_default('DOCKER_PROGRESS', 'auto')
 
 all: sync-k3s-images build
 
-build *build_args='': && _list-if-load
+build: && _list-if-load
     #!/usr/bin/env bash
     set -euo pipefail
     for tgt in {{ targets }} ; do
-        just output='{{ output }}' \
-             image='{{ image }}' \
+        just image='{{ image }}' \
+             output='{{ output }}' \
              version='{{ version }}' \
              platform='{{ platform }}' \
-            _target "$tgt" {{ build_args }}
+            _target "$tgt"
     done
 
 _list-if-load:
@@ -90,20 +90,19 @@ _k3s-channels:
                 | {key:.id, value:$tag}
             ] | from_entries'
 
-_target target='' *args='':
+_target target='':
     @just \
-        output='{{ output }}' \
         image='{{ image }}' \
+        output='{{ output }}' \
         platform='{{ platform }}' \
         _build --target='{{ target }}' \
-            {{ if version == '' { '' } else { '--tag=' + image + ':' + version + if target == 'devcontainer' { '' } else { '-' + target } } }} \
-            {{ args }}
+            {{ if version == '' { '' } else { '--tag=' + image + ':' + version + if target == 'devcontainer' { '' } else { '-' + target } } }}
 
 # Build the devcontainer image
 _build *args='':
     docker buildx build . {{ _tag }} --pull \
-        --platform='{{ platform }}' \
         --progress='{{ DOCKER_PROGRESS }}' \
+        --platform='{{ platform }}' \
         --output='{{ output }}' \
         {{ args }}
 
