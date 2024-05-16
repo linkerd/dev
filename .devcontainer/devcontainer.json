@@ -31,11 +31,11 @@
   },
   "init": true,
   "runArgs": [
+    // Use the host network so we can access k3d, etc.
+    "--net=host",
     // Limit container memory usage.
     "--memory=12g",
-    "--memory-swap=12g",
-    // Use the host network so we can access k3d, etc.
-    "--net=host"
+    "--memory-swap=12g"
   ],
   "overrideCommand": false,
   "remoteUser": "code",
