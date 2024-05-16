@@ -15,8 +15,8 @@ COPY --link bin/scurl /usr/local/bin/
 
 FROM apt-base as apt-node
 RUN apt-get install -y gnupg2
-ARG NODE_MAJOR=20
 RUN mkdir -p /etc/apt/keyrings && scurl https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+ARG NODE_MAJOR=20
 RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" >/etc/apt/sources.list.d/nodesource.list
 RUN apt-get update && apt-get install nodejs -y
 
@@ -30,15 +30,21 @@ FROM apt-base as apt-llvm
 #     && echo 'deb-src http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-14 main' ) >> /etc/apt/sources.list
 # RUN DEBIAN_FRONTEND=noninteractive apt-get update
 
+# Some tools we want to include in the built images don't offer precompiled
+# multi-arch binaries, so they'll need to be built on demand. Luckily, all
+# of the tools that currently fit this description are written in rust, so
+# we can use a single base image as the build environment for them all.
+FROM docker.io/library/rust:alpine as rust-tool-factory
+RUN apk add --no-cache musl-dev
+
 ##
 ## Scripting tools
 ##
 
 # j5j Turns JSON5 into plain old JSON (i.e. to be processed by jq).
-FROM docker.io/library/rust:slim-bookworm as j5j
+FROM rust-tool-factory as j5j
 ARG J5J_VERSION=v0.2.0
-RUN cargo install --git='https://github.com/olix0r/j5j.git' --tag="$J5J_VERSION" \
-    && mv "$(which j5j)" /usr/local/bin/j5j
+RUN cargo install --git='https://github.com/olix0r/j5j.git' --tag="${J5J_VERSION}" --profile=release j5j
 
 # just runs build/test recipes. Like `make` but a bit more ergonomic.
 FROM apt-base as just
@@ -53,7 +59,7 @@ RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linu
     scurl -o /yq "$url" && chmod +x /yq
 
 FROM scratch as tools-script
-COPY --link --from=j5j /usr/local/bin/j5j /bin/
+COPY --link --from=j5j /usr/local/cargo/bin/j5j /bin/
 COPY --link --from=just /usr/local/bin/just /bin/
 COPY --link --from=yq /yq /bin/
 COPY --link bin/scurl /bin/
@@ -158,11 +164,10 @@ RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/pr
 ##
 
 # cargo-action-fmt formats `cargo build` JSON output to Github Actions annotations.
-FROM docker.io/library/rust:slim-bookworm as cargo-action-fmt
+FROM rust-tool-factory as cargo-action-fmt
 ENV RUSTFLAGS='-A dead_code'
-ARG CARGO_ACTION_FMT_VERSION=1.0.2
-RUN cargo install --git='https://github.com/olix0r/cargo-action-fmt.git' --tag="v$CARGO_ACTION_FMT_VERSION" \
-    && mv "$(which cargo-action-fmt)" /usr/local/bin/cargo-action-fmt
+ARG CARGO_ACTION_FMT_VERSION=v1.0.2
+RUN cargo install --git='https://github.com/olix0r/cargo-action-fmt.git' --tag="${CARGO_ACTION_FMT_VERSION}" --profile=release cargo-action-fmt
 
 # cargo-deny checks cargo dependencies for licensing and RUSTSEC security issues.
 FROM apt-base as cargo-deny
@@ -183,7 +188,7 @@ RUN url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAUL
     scurl "$url" | tar xzvf - -C /usr/local/bin cargo-tarpaulin
 
 FROM scratch as tools-rust
-COPY --link --from=cargo-action-fmt /usr/local/bin/cargo-action-fmt /bin/
+COPY --link --from=cargo-action-fmt /usr/local/cargo/bin/cargo-action-fmt /bin/
 COPY --link --from=cargo-deny /usr/local/bin/cargo-deny /bin/
 COPY --link --from=cargo-nextest /usr/local/bin/cargo-nextest /bin/
 COPY --link --from=cargo-tarpaulin /usr/local/bin/cargo-tarpaulin /bin/
@@ -241,8 +246,9 @@ COPY --link --from=gotests /go/bin/gotests /bin/
 COPY --link --from=gotestsum /go/bin/gotestsum /bin/
 
 # Networking utilities
-FROM scratch as tools-net
-COPY --link --from=ghcr.io/olix0r/hokay:v0.2.2 /hokay /bin/
+FROM rust-tool-factory as tools-net
+ARG HOKAY_VERSION=v0.2.2
+RUN cargo install --git='https://github.com/olix0r/hokay.git' --tag="release/${HOKAY_VERSION}" --profile=release hokay
 
 ##
 ## All Tools
@@ -254,7 +260,7 @@ COPY --link --from=tools-k8s /bin/* /bin/
 COPY --link --from=tools-k8s /etc/* /etc/
 ENV K3S_IMAGES_JSON=/etc/k3s-images.json
 COPY --link --from=tools-lint /bin/* /bin/
-COPY --link --from=tools-net /bin/* /bin/
+COPY --link --from=tools-net /usr/local/cargo/bin/hokay /bin/
 COPY --link --from=tools-rust /bin/* /bin/
 COPY --link --from=tools-script /bin/* /bin/
 
@@ -359,7 +365,7 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
 
 RUN sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen \
     && locale-gen \
-    && (echo "LC_ALL=en_US.UTF-8" && echo "LANGUAGE=en_US.UTF-8") >/etc/default/locale
+    && (echo "LC_ALL=en_US.UTF-8" && echo "LANGUAGE=en_US.UTF-8") > /etc/default/locale
 
 RUN groupadd --gid=1000 code \
     && useradd --create-home --uid=1000 --gid=1000 code \
@@ -377,36 +383,29 @@ RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-llvm,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
     DEBIAN_FRONTEND=noninteractive apt-get install -y clang-14 llvm-14
 
-# Use microsoft's Docker setup script to install the Docker CLI.
+# Install Docker using the script directly from the "official" `docker-outside-of-docker`
+# DevContainer feature repo.
+#
+# ref: https://github.com/devcontainers/features/tree/main/src/docker-outside-of-docker
 #
 # A distinct cache is used because the script adds an apt repo that we don't
 # want to pull in for other layers.
 #
-# NOTE: Per @ver's previous note here, this can in fact be replaced with the
-# "docker-outside-of-docker" devcontainer feature. Doing so requires that the
-# feature be added to the `devcontainer.json` file of every repo that uses this
-# one as a base. The feature performs a check for existing docker installations
-# before actually doing anything though, so although this step *should* be removed
-# once all the "downstream" repos are updated to use the feature instead, it won't
-# cause problems in the interim if it's left as is.
-#
-# TODO(the-wondersmith): remove this step entirely once all downstream repos are updated
-ARG INSTALL_DOCKER=true
+## TODO(the-wondersmith): replace this with the devcontainer feature directly
+ENV DOCKER_BUILDKIT=1
 RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/apt \
     --mount=type=cache,id=apt-docker,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
     --mount=type=cache,id=apt-docker,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists \
     --mount=type=bind,from=tools,source=/bin/scurl,target=/usr/local/bin/scurl \
-    if echo "${INSTALL_DOCKER}" | grep -qiE "^(true|yes|1)$"; then \
-        # prevent pip from tanking the build on arm64 targets \
-        if [[ "$(uname -m)" == "aarch64" ]]; then \
-            apt-get install -y pipx docker-compose; \
-        fi; \
-        scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh  | bash -s ; \
-    else \
-        echo "SKIPPING DOCKER CLI INSTALL"; \
-    fi
+    scurl https://raw.githubusercontent.com/devcontainers/features/main/src/docker-outside-of-docker/install.sh \
+    | env USE_MOBY=false INSTALL_DOCKER_BUILDX=true DOCKER_DASH_COMPOSE_VERSION=v2 bash -s
 
-ENV DOCKER_BUILDKIT=1
+COPY <<"EOF" /usr/local/share/docker-init.sh
+#!/usr/bin/env bash
+exec "$@"
+EOF
+
+RUN chmod +x /usr/local/share/docker-init.sh
 
 ARG MARKDOWNLINT_VERSION=0.10.0
 RUN --mount=type=cache,from=apt-node,source=/etc/apt,target=/etc/apt,ro \
