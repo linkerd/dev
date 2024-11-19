@@ -352,7 +352,14 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         sudo \
         time \
         tshark \
-        unzip
+        unzip \
+
+# Link the gnu versions of ranlib to the musl toolchain.
+# See: https://github.com/linkerd/linkerd2/issues/13350
+RUN ln -s /usr/bin/aarch64-linux-gnu-ranlib /usr/bin/aarch64-linux-musl-ranlib && \
+    ln -s /usr/bin/arm-linux-gnueabihf-ranlib /usr/bin/arm-linux-musl-ranlib && \
+    ln -s /usr/bin/x86_64-linux-gnu-ranlib /usr/bin/x86_64-linux-musl-ranlib
+
 RUN sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen \
     && locale-gen \
     && (echo "LC_ALL=en_US.UTF-8" && echo "LANGUAGE=en_US.UTF-8") >/etc/default/locale
