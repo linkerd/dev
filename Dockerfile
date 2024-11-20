@@ -352,7 +352,7 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         sudo \
         time \
         tshark \
-        unzip \
+        unzip
 
 # Link the gnu versions of ranlib to the musl toolchain.
 # See: https://github.com/linkerd/linkerd2/issues/13350
