@@ -265,8 +265,8 @@ COPY --link --from=tools-script /bin/* /bin/
 # A Go build environment.
 FROM docker.io/library/golang:1.22 as go
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
-    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y file jo jq
 COPY --link --from=tools-script /bin/* /usr/local/bin/
 COPY --link --from=tools-go /bin/* /usr/local/bin/
@@ -279,8 +279,8 @@ ENV PROTOC_NO_VENDOR=1 \
 # A Rust build environment.
 FROM docker.io/rust:1.76-slim-bookworm as rust
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
-    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         cmake \
         curl \
@@ -291,8 +291,8 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         libssl-dev \
         pkg-config
 RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,ro \
-    --mount=type=cache,from=apt-llvm,source=/var/cache/apt,target=/var/cache/apt \
-    --mount=type=cache,from=apt-llvm,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    --mount=type=cache,from=apt-llvm,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-llvm,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y clang-14 llvm-14
 RUN rustup component add clippy rustfmt
 COPY --link --from=tools-lint /bin/checksec /usr/local/bin/
@@ -317,8 +317,8 @@ RUN rustup target add \
         armv7-unknown-linux-musleabihf \
         x86_64-unknown-linux-musl
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
-    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         g++-aarch64-linux-gnu \
         g++-arm-linux-gnueabihf \
@@ -333,8 +333,8 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
 
 FROM docker.io/library/debian:bookworm as devcontainer
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
-    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         cmake \
         curl \
@@ -371,13 +371,13 @@ RUN groupadd --gid=1000 code \
 
 # git v2.34+ has new subcommands and supports code signing via SSH.
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
-    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y -t bookworm-backports git
 
 RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,ro \
-    --mount=type=cache,from=apt-llvm,source=/var/cache/apt,target=/var/cache/apt \
-    --mount=type=cache,from=apt-llvm,source=/var/lib/apt/lists,target=/var/lib/apt/lists,ro \
+    --mount=type=cache,from=apt-llvm,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-llvm,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y clang-14 llvm-14
 
 # Use microsoft's Docker setup script to install the Docker CLI.
@@ -387,16 +387,16 @@ RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,ro \
 #
 # TODO(ver): replace this with a devcontainer feature?
 RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/apt \
-    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/cache/apt,target=/var/cache/apt \
-    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists \
+    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     --mount=type=bind,from=tools,source=/bin/scurl,target=/usr/local/bin/scurl \
     scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh | bash -s
 ENV DOCKER_BUILDKIT=1
 
 ARG MARKDOWNLINT_VERSION=0.10.0
 RUN --mount=type=cache,from=apt-node,source=/etc/apt,target=/etc/apt,ro \
-    --mount=type=cache,from=apt-node,source=/var/cache/apt,target=/var/cache/apt \
-    --mount=type=cache,from=apt-node,source=/var/lib/apt/lists,target=/var/lib/apt/lists \
+    --mount=type=cache,from=apt-node,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-node,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
 RUN npm install "markdownlint-cli2@${MARKDOWNLINT_VERSION}" --global
 
