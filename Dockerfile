@@ -115,7 +115,7 @@ COPY --link --from=step /usr/local/bin/step /bin/
 
 # actionlint lints github actions workflows.
 FROM apt-base as actionlint
-ARG ACTIONLINT_VERSION=v1.6.26
+ARG ACTIONLINT_VERSION=v1.7.4
 RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin actionlint
 
