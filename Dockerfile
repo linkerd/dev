@@ -65,7 +65,7 @@ COPY --link bin/scurl /bin/
 
 # helm templates kubernetes manifests.
 FROM apt-base as helm
-ARG HELM_VERSION=v3.14.1
+ARG HELM_VERSION=v3.16.3
 RUN url="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" ; \
     scurl "$url" | tar xzvf - --strip-components=1 -C /usr/local/bin linux-amd64/helm
 
