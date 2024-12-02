@@ -72,7 +72,7 @@ RUN url="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" ; \
 
 # helm-docs generates documentation from helm charts.
 FROM apt-base as helm-docs
-ARG HELM_DOCS_VERSION=v1.12.0
+ARG HELM_DOCS_VERSION=v1.14.2
 RUN url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERSION/helm-docs_${HELM_DOCS_VERSION#v}_Linux_x86_64.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin helm-docs
 
