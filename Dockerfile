@@ -78,7 +78,7 @@ RUN url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERS
 
 # kubectl controls kubernetes clusters.
 FROM apt-base as kubectl
-ARG KUBECTL_VERSION=v1.29.2
+ARG KUBECTL_VERSION=v1.31.3
 RUN url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" ; \
     scurl -o /usr/local/bin/kubectl "$url" && chmod +x /usr/local/bin/kubectl
 
