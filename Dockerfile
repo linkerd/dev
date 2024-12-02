@@ -128,7 +128,7 @@ RUN url="https://raw.githubusercontent.com/slimm609/checksec.sh/${CHECKSEC_VERSI
 
 # shellcheck lints shell scripts.
 FROM apt-base as shellcheck
-ARG SHELLCHECK_VERSION=v0.9.0
+ARG SHELLCHECK_VERSION=v0.10.0
 RUN url="https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" ; \
     scurl "$url" | tar xJvf - --strip-components=1 -C /usr/local/bin "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
 COPY --link bin/just-sh /usr/local/bin/
