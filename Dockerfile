@@ -277,7 +277,7 @@ ENV PROTOC_NO_VENDOR=1 \
     PROTOC_INCLUDE=/usr/local/include
 
 # A Rust build environment.
-FROM docker.io/rust:1.76-slim-bookworm as rust
+FROM docker.io/rust:1.82-slim-bookworm as rust
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
