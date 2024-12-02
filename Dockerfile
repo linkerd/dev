@@ -144,7 +144,7 @@ COPY --link bin/action-* bin/just-dev bin/just-sh /bin/
 ##
 
 FROM apt-base as protobuf
-ARG PROTOC_VERSION=v3.20.3
+ARG PROTOC_VERSION=v29.0
 RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/protoc-${PROTOC_VERSION#v}-linux-$(uname -m).zip" ; \
     cd $(mktemp -d) && \
     scurl -o protoc.zip  "$url" && \
