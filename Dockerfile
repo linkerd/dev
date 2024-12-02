@@ -202,8 +202,10 @@ FROM docker.io/library/golang:1.23 as go-outline
 RUN go install github.com/ramya-rao-a/go-outline@latest
 
 FROM docker.io/library/golang:1.23 as go-protoc
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
-RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+ARG PROTOC_GEN_GO_VERSION=v1.35.2
+ARG PROTOC_GEN_GO_GRPC_VERSION=v1.2
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@${PROTOC_GEN_GO_VERSION}
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION}
 
 FROM docker.io/library/golang:1.23 as golangci-lint
 RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
