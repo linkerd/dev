@@ -96,10 +96,9 @@ COPY --link k3s-images.json "$K3S_IMAGES_JSON"
 
 # step is a tool for managing certificates.
 FROM apt-base as step
-ARG STEP_VERSION=v0.25.2
-RUN scurl -O "https://dl.step.sm/gh-release/cli/docs-cli-install/${STEP_VERSION}/step-cli_${STEP_VERSION#v}_amd64.deb" \
-    && dpkg -i "step-cli_${STEP_VERSION#v}_amd64.deb" \
-    && rm "step-cli_${STEP_VERSION#v}_amd64.deb"
+ARG STEP_VERSION=v0.28.2
+RUN url="https://dl.smallstep.com/gh-release/cli/gh-release-header/${STEP_VERSION}/step_linux_${STEP_VERSION#v}_amd64.tar.gz" ; \
+    scurl "$url" | tar xzvf - --strip-components=2 -C /usr/local/bin step_"${STEP_VERSION#v}"/bin/step
 
 FROM scratch as tools-k8s
 COPY --link --from=helm /usr/local/bin/helm /bin/
@@ -108,7 +107,7 @@ COPY --link --from=k3d /usr/local/bin/* /bin/
 ENV K3S_IMAGES_JSON=/etc/k3s-images.json
 COPY --link --from=k3d /usr/local/etc/k3s-images.json "$K3S_IMAGES_JSON"
 COPY --link --from=kubectl /usr/local/bin/kubectl /bin/
-COPY --link --from=step /usr/bin/step-cli /bin/
+COPY --link --from=step /usr/local/bin/step /bin/
 
 ##
 ## Linting tools
