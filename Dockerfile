@@ -225,7 +225,8 @@ FROM docker.io/library/golang:1.23 as gotests
 RUN go install github.com/cweill/gotests/gotests@latest
 
 FROM docker.io/library/golang:1.23 as gotestsum
-RUN go install gotest.tools/gotestsum@v0.4.2
+ARG GOTESTSUM_VERSION=v1.12.0
+RUN go install gotest.tools/gotestsum@${GOTESTSUM_VERSION}
 
 FROM scratch as tools-go
 COPY --link --from=go-delve /go/bin/dlv /bin/
