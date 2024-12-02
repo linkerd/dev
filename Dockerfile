@@ -178,7 +178,7 @@ RUN url="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-$
 
 # cargo-tarpaulin is a code coverage tool.
 FROM apt-base as cargo-tarpaulin
-ARG CARGO_TARPAULIN_VERSION=0.27.3
+ARG CARGO_TARPAULIN_VERSION=0.31.3
 RUN url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAULIN_VERSION}/cargo-tarpaulin-x86_64-unknown-linux-musl.tar.gz" ;\
     scurl "$url" | tar xzvf - -C /usr/local/bin cargo-tarpaulin
 
