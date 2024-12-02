@@ -396,7 +396,7 @@ RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/a
     scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh | bash -s
 ENV DOCKER_BUILDKIT=1
 
-ARG MARKDOWNLINT_VERSION=0.10.0
+ARG MARKDOWNLINT_VERSION=0.15.0
 RUN --mount=type=cache,from=apt-node,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-node,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,from=apt-node,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
