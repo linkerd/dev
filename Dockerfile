@@ -166,7 +166,7 @@ RUN url="https://github.com/olix0r/cargo-action-fmt/releases/download/release%2F
 
 # cargo-deny checks cargo dependencies for licensing and RUSTSEC security issues.
 FROM apt-base as cargo-deny
-ARG CARGO_DENY_VERSION=0.14.11
+ARG CARGO_DENY_VERSION=0.16.3
 RUN url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - --strip-components=1 -C /usr/local/bin "cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl/cargo-deny"
 
