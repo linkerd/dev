@@ -172,7 +172,7 @@ RUN url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_D
 
 # cargo-nextest is a nicer test runner.
 FROM apt-base as cargo-nextest
-ARG NEXTEST_VERSION=0.9.67
+ARG NEXTEST_VERSION=0.9.85
 RUN url="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-${NEXTEST_VERSION}/cargo-nextest-${NEXTEST_VERSION}-x86_64-unknown-linux-gnu.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin cargo-nextest
 
