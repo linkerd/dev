@@ -49,7 +49,7 @@ RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${
 
 # yq is kind of like jq, but for YAML.
 FROM apt-base as yq
-ARG YQ_VERSION=v4.33.3
+ARG YQ_VERSION=v4.44.5
 RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" ; \
     scurl -o /yq "$url" && chmod +x /yq
 
