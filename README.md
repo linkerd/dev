@@ -217,7 +217,7 @@ jobs:
 Build a single target (e.g. while editing the Dockerfile):
 
 ```sh
-:; just build --target=rust
+:; just targets=rust build
 ```
 
 Update k3s images for all channels:
