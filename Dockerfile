@@ -381,6 +381,8 @@ RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-llvm,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,from=apt-llvm,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y clang-14 llvm-14
+ENV CC=clang-14 \
+    CXX=clang++-14
 
 # Use microsoft's Docker setup script to install the Docker CLI.
 #
