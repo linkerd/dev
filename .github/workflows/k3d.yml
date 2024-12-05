@@ -22,7 +22,8 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y skopeo
       - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633
       - uses: ./actions/setup-tools
-      - run: just sync-k3s-images
+      # The sync may fail when a new K3s version is released. This is expected.
+      - run: just sync-k3s-images || true
       - run: git diff --exit-code
 
   k3s-matrix:

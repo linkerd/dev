@@ -63,6 +63,12 @@ sync-k3s-images:
     DIGESTS=$(for tag in $(echo "$CHANNELS" | jq -r 'to_entries | .[].value' | sort -u) ; do
         jo key="$tag" value="$(just k3s-image='{{ k3s-image }}' _k3s-inspect "${tag}" | jq -r '.Digest')"
     done | jq -cs 'from_entries')
+    MISSING_CHANNELS=$(echo "$DIGESTS" | jq -r 'to_entries | map(select(.value == null) | .key) | .[]')
+    if [[ -n "$MISSING_CHANNELS" ]]; then
+        echo "Error: Digests could not be discovered for the following channels:" >&2
+        echo "$MISSING_CHANNELS" | while IFS= read -r channel; do echo "- $channel"; done >&2
+        exit 11
+    fi
     jo name='{{ k3s-image }}' channels="$CHANNELS" digests="$DIGESTS" \
         | jq . > k3s-images.json
     jq . k3s-images.json
