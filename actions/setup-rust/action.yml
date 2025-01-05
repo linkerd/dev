@@ -29,7 +29,7 @@ runs:
         ) >> "$GITHUB_ENV"
 
     - shell: bash
-      run: curl --tlsv1.2 -sSfL https://apt.llvm.org/llvm.sh | sudo bash -s 14
+      run: curl --tlsv1.2 -sSfL https://apt.llvm.org/llvm.sh | sudo bash -s 19
 
     - if: inputs.components
       shell: bash
