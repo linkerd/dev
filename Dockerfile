@@ -21,15 +21,13 @@ RUN mkdir -p /etc/apt/keyrings && scurl https://deb.nodesource.com/gpgkey/nodeso
 RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" >/etc/apt/sources.list.d/nodesource.list
 RUN apt-get update && apt-get install nodejs -y
 
-# At the moment, we can use the LLVM version shipped by Debian bookworm. If we
-# need to diverge in the future we can update this layer to use an alternate apt
-# source. See https://apt.llvm.org/.
+# See https://apt.llvm.org/.
 FROM apt-base as apt-llvm
-# RUN DEBIAN_FRONTEND=noninteractive apt-get install -y gnupg2
-# RUN curl --tlsv1.2 -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key |apt-key add -
-# RUN ( echo 'deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-14 main' \
-#     && echo 'deb-src http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-14 main' ) >> /etc/apt/sources.list
-# RUN DEBIAN_FRONTEND=noninteractive apt-get update
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y gnupg2
+RUN curl --tlsv1.2 -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key |apt-key add -
+RUN ( echo 'deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-19 main' \
+    && echo 'deb-src http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-19 main' ) >> /etc/apt/sources.list
+RUN DEBIAN_FRONTEND=noninteractive apt-get update
 
 ##
 ## Scripting tools
@@ -380,9 +378,9 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
 RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-llvm,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,from=apt-llvm,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y clang-14 llvm-14
-ENV CC=clang-14 \
-    CXX=clang++-14
+    DEBIAN_FRONTEND=noninteractive apt-get install -y clang-19 llvm-19
+ENV CC=clang-19 \
+    CXX=clang++-19
 
 # Use microsoft's Docker setup script to install the Docker CLI.
 #
