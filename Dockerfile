@@ -293,7 +293,7 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
 RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-llvm,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,from=apt-llvm,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y clang-14 llvm-14
+    DEBIAN_FRONTEND=noninteractive apt-get install -y clang-19 llvm-19
 RUN rustup component add clippy rustfmt
 COPY --link --from=tools-lint /bin/checksec /usr/local/bin/
 COPY --link --from=tools-script /bin/* /usr/local/bin/
