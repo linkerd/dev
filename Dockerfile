@@ -190,40 +190,40 @@ COPY --link bin/just-cargo /bin/
 ## Go tools
 ##
 
-FROM docker.io/library/golang:1.23 as go-delve
+FROM docker.io/library/golang:1.24 as go-delve
 RUN go install github.com/go-delve/delve/cmd/dlv@latest
 
-FROM docker.io/library/golang:1.23 as go-impl
+FROM docker.io/library/golang:1.24 as go-impl
 RUN go install github.com/josharian/impl@latest
 
-FROM docker.io/library/golang:1.23 as go-outline
+FROM docker.io/library/golang:1.24 as go-outline
 RUN go install github.com/ramya-rao-a/go-outline@latest
 
-FROM docker.io/library/golang:1.23 as go-protoc
+FROM docker.io/library/golang:1.24 as go-protoc
 ARG PROTOC_GEN_GO_VERSION=v1.35.2
 ARG PROTOC_GEN_GO_GRPC_VERSION=v1.5.1
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@${PROTOC_GEN_GO_VERSION}
 RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION}
 
-FROM docker.io/library/golang:1.23 as golangci-lint
+FROM docker.io/library/golang:1.24 as golangci-lint
 RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
-FROM docker.io/library/golang:1.23 as gomodifytags
+FROM docker.io/library/golang:1.24 as gomodifytags
 RUN go install github.com/fatih/gomodifytags@latest
 
-FROM docker.io/library/golang:1.23 as gopkgs
+FROM docker.io/library/golang:1.24 as gopkgs
 RUN go install github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest
 
-FROM docker.io/library/golang:1.23 as goplay
+FROM docker.io/library/golang:1.24 as goplay
 RUN go install github.com/haya14busa/goplay/cmd/goplay@latest
 
-FROM docker.io/library/golang:1.23 as gopls
+FROM docker.io/library/golang:1.24 as gopls
 RUN go install golang.org/x/tools/gopls@latest
 
-FROM docker.io/library/golang:1.23 as gotests
+FROM docker.io/library/golang:1.24 as gotests
 RUN go install github.com/cweill/gotests/gotests@latest
 
-FROM docker.io/library/golang:1.23 as gotestsum
+FROM docker.io/library/golang:1.24 as gotestsum
 ARG GOTESTSUM_VERSION=v1.12.0
 RUN go install gotest.tools/gotestsum@${GOTESTSUM_VERSION}
 
@@ -263,7 +263,7 @@ COPY --link --from=tools-script /bin/* /bin/
 ##
 
 # A Go build environment.
-FROM docker.io/library/golang:1.23 as go
+FROM docker.io/library/golang:1.24 as go
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
