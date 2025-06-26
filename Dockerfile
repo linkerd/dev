@@ -123,8 +123,8 @@ RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERS
 
 # checksec checks binaries for security issues.
 FROM apt-base as checksec
-ARG CHECKSEC_VERSION=3.0.2 # repo=slimm609/checksec.sh
-RUN url="https://raw.githubusercontent.com/slimm609/checksec.sh/${CHECKSEC_VERSION}/checksec" ; \
+ARG CHECKSEC_VERSION=2.7.1 # ignore
+RUN url="https://raw.githubusercontent.com/slimm609/checksec/${CHECKSEC_VERSION}/checksec" ; \
     scurl -o /usr/local/bin/checksec "$url" && chmod 755 /usr/local/bin/checksec
 
 # shellcheck lints shell scripts.
@@ -161,9 +161,9 @@ RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/pr
 
 # cargo-action-fmt formats `cargo build` JSON output to Github Actions annotations.
 FROM apt-base as cargo-action-fmt
-ARG CARGO_ACTION_FMT_VERSION=v2.0.1 # repo=olix0r/cargo-action-fmt
-RUN url="https://github.com/olix0r/cargo-action-fmt/releases/download/release%2Fv${CARGO_ACTION_FMT_VERSION}/cargo-action-fmt-x86_64-unknown-linux-gnu" ; \
-    scurl -o /usr/local/bin/cargo-action-fmt "$url" && chmod +x /usr/local/bin/cargo-action-fmt
+ARG CARGO_ACTION_FMT_VERSION=v1.0.4 # ignore
+RUN url="https://github.com/olix0r/cargo-action-fmt/releases/download/release%2F${CARGO_ACTION_FMT_VERSION}/cargo-action-fmt-${CARGO_ACTION_FMT_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
+    scurl "$url" | tar zvxf - -C /usr/local/bin cargo-action-fmt
 
 # cargo-deny checks cargo dependencies for licensing and RUSTSEC security issues.
 FROM apt-base as cargo-deny
@@ -173,7 +173,7 @@ RUN url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_D
 
 # cargo-nextest is a nicer test runner.
 FROM apt-base as cargo-nextest
-ARG NEXTEST_VERSION=cargo-nextest-0.9.99 # repo=nextest-rs/nextest
+ARG NEXTEST_VERSION=0.9.99 # repo=nextest-rs/nextest,prefix=cargo-nextest-
 RUN url="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-${NEXTEST_VERSION}/cargo-nextest-${NEXTEST_VERSION}-x86_64-unknown-linux-gnu.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin cargo-nextest
 

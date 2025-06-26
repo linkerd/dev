@@ -75,6 +75,9 @@ sync-k3s-images:
 
 minimum-k8s := '20'
 
+update-versions:
+    go run ./update-versions.go --in-place
+
 # Inspect a k3s image by tag
 _k3s-inspect tag:
     skopeo inspect 'docker://{{ k3s-image }}:{{ tag }}'

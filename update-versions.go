@@ -33,7 +33,6 @@ const (
 	httpTimeout  = 10 * time.Second
 	goDLIndexURL = "https://go.dev/dl/?mode=json"
 	userAgent    = "update-versions/1.0 (+https://github.com/linkerd/dev)"
-	commentRepo  = "repo="
 )
 
 var (
@@ -132,6 +131,46 @@ func latestRustMinorVersion(ctx context.Context) (string, error) {
 	return parts[0] + "." + parts[1], nil
 }
 
+// parseHints extracts repo and prefix hints from a comment suffix like "# repo=owner/repo,prefix=xyz-"
+func parseHints(suffix string) (repo, prefix string) {
+	s := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(suffix), "#"))
+	for _, part := range strings.Split(s, ",") {
+		kv := strings.SplitN(strings.TrimSpace(part), "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		switch kv[0] {
+		case "repo":
+			repo = kv[1]
+		case "prefix":
+			prefix = kv[1]
+		}
+	}
+	return
+}
+
+// latestGitHubTagWithPrefix lists releases and returns the first tag without the given prefix
+func latestGitHubTagWithPrefix(ctx context.Context, repo, prefix string) (string, error) {
+	// fetch up to 100 releases and skip prereleases
+	var releases []struct {
+		TagName   string `json:"tag_name"`
+		Prerelease bool   `json:"prerelease"`
+	}
+	url := fmt.Sprintf("https://api.github.com/repos/%s/releases?per_page=100", repo)
+	if err := httpGetJSON(ctx, url, githubToken, &releases); err != nil {
+		return "", err
+	}
+	for _, r := range releases {
+		if r.Prerelease {
+			continue
+		}
+		if strings.HasPrefix(r.TagName, prefix) {
+			return strings.TrimPrefix(r.TagName, prefix), nil
+		}
+	}
+	return "", fmt.Errorf("no release found for %q with prefix %q", repo, prefix)
+}
+
 // ----------------------------------------------------------------------------
 // ARG line updater
 // ----------------------------------------------------------------------------
@@ -142,20 +181,21 @@ func updateARG(ctx context.Context, line string) (newLine string, changed bool, 
 		return line, false, nil
 	}
 
-	prefix, name, curVal, suffix := m[1], m[2], m[3], m[4]
-	repoHint := extractRepoHint(suffix)
+	prefixIndent, name, curVal, suffix := m[1], m[2], m[3], m[4]
+	repoHint, prefixHint := parseHints(suffix)
 
 	var newVal string
-	switch name {
-	case "GO_TAG":
+	switch {
+	case prefixHint != "" && repoHint != "":
+		newVal, err = latestGitHubTagWithPrefix(ctx, repoHint, prefixHint)
+	case name == "GO_TAG":
 		newVal, err = latestGoMinorVersion(ctx)
-	case "RUST_TAG":
+	case name == "RUST_TAG":
 		newVal, err = latestRustMinorVersion(ctx)
-	default:
-		if repoHint == "" {
-			return line, false, nil
-		}
+	case repoHint != "":
 		newVal, err = latestGitHubTag(ctx, repoHint)
+	default:
+		return line, false, nil
 	}
 	if err != nil {
 		return "", false, err
@@ -163,17 +203,7 @@ func updateARG(ctx context.Context, line string) (newLine string, changed bool, 
 	if newVal == curVal {
 		return line, false, nil
 	}
-	return fmt.Sprintf("%s%s=%s%s\n", prefix, name, newVal, suffix), true, nil
-}
-
-func extractRepoHint(comment string) string {
-	if idx := strings.Index(comment, "#"); idx >= 0 {
-		comment = comment[idx+1:]
-		if pos := strings.Index(comment, commentRepo); pos >= 0 {
-			return strings.Fields(comment[pos+len(commentRepo):])[0]
-		}
-	}
-	return ""
+	return fmt.Sprintf("%s%s=%s%s\n", prefixIndent, name, newVal, suffix), true, nil
 }
 
 // ----------------------------------------------------------------------------
