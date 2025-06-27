@@ -356,6 +356,7 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         sudo \
         time \
         tshark \
+        umoci \
         unzip
 
 # Link the gnu versions of ranlib to the musl toolchain.
