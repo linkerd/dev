@@ -3,7 +3,7 @@
 //
 // Usage:
 //
-//	go run ./cmd/update-versions [--in-place] <path/to/Dockerfile>
+//	go run ./cmd/update-versions [--in-place]
 //
 // When --in-place is omitted, the modified Dockerfile is written to stdout.
 package main
