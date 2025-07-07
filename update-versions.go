@@ -117,18 +117,8 @@ func latestGoMinorVersion(ctx context.Context) (string, error) {
 	return parts[0] + "." + parts[1], nil
 }
 
-func latestRustMinorVersion(ctx context.Context) (string, error) {
-	v, err := latestGitHubTag(ctx, "rust-lang/rust")
-	if err != nil {
-		return "", err
-	}
-	// Rust tags are like "1.78.0", we want "1.78"
-	parts := strings.SplitN(v, ".", 3)
-	if len(parts) < 2 {
-		return v, nil
-	}
-	// return "major.minor"
-	return parts[0] + "." + parts[1], nil
+func latestRustVersion(ctx context.Context) (string, error) {
+	return latestGitHubTag(ctx, "rust-lang/rust")
 }
 
 // parseHints extracts repo and prefix hints from a comment suffix like "# repo=owner/repo,prefix=xyz-"
@@ -191,7 +181,7 @@ func updateARG(ctx context.Context, line string) (newLine string, changed bool, 
 	case name == "GO_TAG":
 		newVal, err = latestGoMinorVersion(ctx)
 	case name == "RUST_TAG":
-		newVal, err = latestRustMinorVersion(ctx)
+		newVal, err = latestRustVersion(ctx)
 	case repoHint != "":
 		newVal, err = latestGitHubTag(ctx, repoHint)
 	default:

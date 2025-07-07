@@ -6,7 +6,7 @@
 
 
 ARG GO_TAG=1.24
-ARG RUST_TAG=1.87
+ARG RUST_TAG=1.88.0
 
 # These layers include Debian apt caches, so layers that extend `apt-base`
 # should not be published. Instead, these layers should be used to provide
@@ -45,7 +45,7 @@ RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5
 
 # just runs build/test recipes. Like `make` but a bit more ergonomic.
 FROM apt-base as just
-ARG JUST_VERSION=1.40.0 # repo=casey/just
+ARG JUST_VERSION=1.41.0 # repo=casey/just
 RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin just
 
@@ -173,7 +173,7 @@ RUN url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_D
 
 # cargo-nextest is a nicer test runner.
 FROM apt-base as cargo-nextest
-ARG NEXTEST_VERSION=0.9.99 # repo=nextest-rs/nextest,prefix=cargo-nextest-
+ARG NEXTEST_VERSION=0.9.100 # repo=nextest-rs/nextest,prefix=cargo-nextest-
 RUN url="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-${NEXTEST_VERSION}/cargo-nextest-${NEXTEST_VERSION}-x86_64-unknown-linux-gnu.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin cargo-nextest
 
