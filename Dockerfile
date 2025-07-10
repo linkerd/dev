@@ -4,6 +4,10 @@
 ## Base layers used to build images
 ##
 
+
+ARG GO_TAG=1.24
+ARG RUST_TAG=1.88.0
+
 # These layers include Debian apt caches, so layers that extend `apt-base`
 # should not be published. Instead, these layers should be used to provide
 # cached data to individual `RUN` commands.
@@ -35,19 +39,19 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update
 
 # j5j Turns JSON5 into plain old JSON (i.e. to be processed by jq).
 FROM apt-base as j5j
-ARG J5J_VERSION=v0.2.0
+ARG J5J_VERSION=v0.2.0 # repo=olix0r/j5j
 RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin j5j
 
 # just runs build/test recipes. Like `make` but a bit more ergonomic.
 FROM apt-base as just
-ARG JUST_VERSION=1.37.0
+ARG JUST_VERSION=1.41.0 # repo=casey/just
 RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin just
 
 # yq is kind of like jq, but for YAML.
 FROM apt-base as yq
-ARG YQ_VERSION=v4.44.5
+ARG YQ_VERSION=v4.46.1 # repo=mikefarah/yq
 RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" ; \
     scurl -o /yq "$url" && chmod +x /yq
 
@@ -63,26 +67,26 @@ COPY --link bin/scurl /bin/
 
 # helm templates kubernetes manifests.
 FROM apt-base as helm
-ARG HELM_VERSION=v3.16.3
+ARG HELM_VERSION=v3.18.4 # repo=helm/helm
 RUN url="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" ; \
     scurl "$url" | tar xzvf - --strip-components=1 -C /usr/local/bin linux-amd64/helm
 
 
 # helm-docs generates documentation from helm charts.
 FROM apt-base as helm-docs
-ARG HELM_DOCS_VERSION=v1.14.2
+ARG HELM_DOCS_VERSION=v1.14.2 # repo=norwoodj/helm-docs
 RUN url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERSION/helm-docs_${HELM_DOCS_VERSION#v}_Linux_x86_64.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin helm-docs
 
 # kubectl controls kubernetes clusters.
 FROM apt-base as kubectl
-ARG KUBECTL_VERSION=v1.31.3
+ARG KUBECTL_VERSION=v1.33.2 # repo=kubernetes/kubernetes
 RUN url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" ; \
     scurl -o /usr/local/bin/kubectl "$url" && chmod +x /usr/local/bin/kubectl
 
 # k3d runs kubernetes clusters in docker.
 FROM apt-base as k3d
-ARG K3D_VERSION=v5.7.5
+ARG K3D_VERSION=v5.8.3 # repo=rancher/k3d
 RUN url="https://raw.githubusercontent.com/rancher/k3d/$K3D_VERSION/install.sh" ; \
     scurl "$url" | USE_SUDO=false K3D_INSTALL_DIR=/usr/local/bin bash
 # just-k3d is a utility that encodes many of the common k3d commands we use.
@@ -94,7 +98,7 @@ COPY --link k3s-images.json "$K3S_IMAGES_JSON"
 
 # step is a tool for managing certificates.
 FROM apt-base as step
-ARG STEP_VERSION=v0.28.2
+ARG STEP_VERSION=v0.28.6 # repo=smallstep/cli
 RUN url="https://dl.smallstep.com/gh-release/cli/gh-release-header/${STEP_VERSION}/step_linux_${STEP_VERSION#v}_amd64.tar.gz" ; \
     scurl "$url" | tar xzvf - --strip-components=2 -C /usr/local/bin step_"${STEP_VERSION#v}"/bin/step
 
@@ -113,19 +117,19 @@ COPY --link --from=step /usr/local/bin/step /bin/
 
 # actionlint lints github actions workflows.
 FROM apt-base as actionlint
-ARG ACTIONLINT_VERSION=v1.7.4
+ARG ACTIONLINT_VERSION=v1.7.7 # repo=rhysd/actionlint
 RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin actionlint
 
 # checksec checks binaries for security issues.
 FROM apt-base as checksec
-ARG CHECKSEC_VERSION=2.5.0
-RUN url="https://raw.githubusercontent.com/slimm609/checksec.sh/${CHECKSEC_VERSION}/checksec" ; \
+ARG CHECKSEC_VERSION=2.7.1 # ignore
+RUN url="https://raw.githubusercontent.com/slimm609/checksec/${CHECKSEC_VERSION}/checksec" ; \
     scurl -o /usr/local/bin/checksec "$url" && chmod 755 /usr/local/bin/checksec
 
 # shellcheck lints shell scripts.
 FROM apt-base as shellcheck
-ARG SHELLCHECK_VERSION=v0.10.0
+ARG SHELLCHECK_VERSION=v0.10.0 # repo=koalaman/shellcheck
 RUN url="https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" ; \
     scurl "$url" | tar xJvf - --strip-components=1 -C /usr/local/bin "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
 COPY --link bin/just-sh /usr/local/bin/
@@ -141,7 +145,7 @@ COPY --link bin/action-* bin/just-dev bin/just-sh /bin/
 ##
 
 FROM apt-base as protobuf
-ARG PROTOC_VERSION=v29.0
+ARG PROTOC_VERSION=v31.1 # repo=protocolbuffers/protobuf
 RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/protoc-${PROTOC_VERSION#v}-linux-$(uname -m).zip" ; \
     cd $(mktemp -d) && \
     scurl -o protoc.zip  "$url" && \
@@ -157,25 +161,25 @@ RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/pr
 
 # cargo-action-fmt formats `cargo build` JSON output to Github Actions annotations.
 FROM apt-base as cargo-action-fmt
-ARG CARGO_ACTION_FMT_VERSION=1.0.2
-RUN url="https://github.com/olix0r/cargo-action-fmt/releases/download/release%2Fv${CARGO_ACTION_FMT_VERSION}/cargo-action-fmt-x86_64-unknown-linux-gnu" ; \
-    scurl -o /usr/local/bin/cargo-action-fmt "$url" && chmod +x /usr/local/bin/cargo-action-fmt
+ARG CARGO_ACTION_FMT_VERSION=v1.0.4 # ignore
+RUN url="https://github.com/olix0r/cargo-action-fmt/releases/download/release%2F${CARGO_ACTION_FMT_VERSION}/cargo-action-fmt-${CARGO_ACTION_FMT_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
+    scurl "$url" | tar zvxf - -C /usr/local/bin cargo-action-fmt
 
 # cargo-deny checks cargo dependencies for licensing and RUSTSEC security issues.
 FROM apt-base as cargo-deny
-ARG CARGO_DENY_VERSION=0.16.3
+ARG CARGO_DENY_VERSION=0.18.3 # repo=EmbarkStudios/cargo-deny
 RUN url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - --strip-components=1 -C /usr/local/bin "cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl/cargo-deny"
 
 # cargo-nextest is a nicer test runner.
 FROM apt-base as cargo-nextest
-ARG NEXTEST_VERSION=0.9.85
+ARG NEXTEST_VERSION=0.9.100 # repo=nextest-rs/nextest,prefix=cargo-nextest-
 RUN url="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-${NEXTEST_VERSION}/cargo-nextest-${NEXTEST_VERSION}-x86_64-unknown-linux-gnu.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin cargo-nextest
 
 # cargo-tarpaulin is a code coverage tool.
 FROM apt-base as cargo-tarpaulin
-ARG CARGO_TARPAULIN_VERSION=0.31.3
+ARG CARGO_TARPAULIN_VERSION=0.32.8 # repo=xd009642/tarpaulin
 RUN url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAULIN_VERSION}/cargo-tarpaulin-x86_64-unknown-linux-musl.tar.gz" ;\
     scurl "$url" | tar xzvf - -C /usr/local/bin cargo-tarpaulin
 
@@ -190,40 +194,40 @@ COPY --link bin/just-cargo /bin/
 ## Go tools
 ##
 
-FROM docker.io/library/golang:1.23 as go-delve
+FROM docker.io/library/golang:${GO_TAG} as go-delve
 RUN go install github.com/go-delve/delve/cmd/dlv@latest
 
-FROM docker.io/library/golang:1.23 as go-impl
+FROM docker.io/library/golang:${GO_TAG} as go-impl
 RUN go install github.com/josharian/impl@latest
 
-FROM docker.io/library/golang:1.23 as go-outline
+FROM docker.io/library/golang:${GO_TAG} as go-outline
 RUN go install github.com/ramya-rao-a/go-outline@latest
 
-FROM docker.io/library/golang:1.23 as go-protoc
-ARG PROTOC_GEN_GO_VERSION=v1.35.2
+FROM docker.io/library/golang:${GO_TAG} as go-protoc
+ARG PROTOC_GEN_GO_TAG=v1.35.2
 ARG PROTOC_GEN_GO_GRPC_VERSION=v1.5.1
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@${PROTOC_GEN_GO_VERSION}
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@${PROTOC_GEN_GO_TAG}
 RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION}
 
-FROM docker.io/library/golang:1.23 as golangci-lint
+FROM docker.io/library/golang:${GO_TAG} as golangci-lint
 RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
-FROM docker.io/library/golang:1.23 as gomodifytags
+FROM docker.io/library/golang:${GO_TAG} as gomodifytags
 RUN go install github.com/fatih/gomodifytags@latest
 
-FROM docker.io/library/golang:1.23 as gopkgs
+FROM docker.io/library/golang:${GO_TAG} as gopkgs
 RUN go install github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest
 
-FROM docker.io/library/golang:1.23 as goplay
+FROM docker.io/library/golang:${GO_TAG} as goplay
 RUN go install github.com/haya14busa/goplay/cmd/goplay@latest
 
-FROM docker.io/library/golang:1.23 as gopls
+FROM docker.io/library/golang:${GO_TAG} as gopls
 RUN go install golang.org/x/tools/gopls@latest
 
-FROM docker.io/library/golang:1.23 as gotests
+FROM docker.io/library/golang:${GO_TAG} as gotests
 RUN go install github.com/cweill/gotests/gotests@latest
 
-FROM docker.io/library/golang:1.23 as gotestsum
+FROM docker.io/library/golang:${GO_TAG} as gotestsum
 ARG GOTESTSUM_VERSION=v1.12.0
 RUN go install gotest.tools/gotestsum@${GOTESTSUM_VERSION}
 
@@ -263,7 +267,7 @@ COPY --link --from=tools-script /bin/* /bin/
 ##
 
 # A Go build environment.
-FROM docker.io/library/golang:1.23 as go
+FROM docker.io/library/golang:${GO_TAG} as go
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
@@ -277,7 +281,7 @@ ENV PROTOC_NO_VENDOR=1 \
     PROTOC_INCLUDE=/usr/local/include
 
 # A Rust build environment.
-FROM docker.io/library/rust:1.83-slim-bookworm as rust
+FROM docker.io/library/rust:${RUST_TAG}-slim-bookworm as rust
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
@@ -352,6 +356,7 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         sudo \
         time \
         tshark \
+        umoci \
         unzip
 
 # Link the gnu versions of ranlib to the musl toolchain.
