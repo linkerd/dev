@@ -51,7 +51,7 @@ RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${
 
 # yq is kind of like jq, but for YAML.
 FROM apt-base as yq
-ARG YQ_VERSION=v4.45.4 # repo=mikefarah/yq
+ARG YQ_VERSION=v4.46.1 # repo=mikefarah/yq
 RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" ; \
     scurl -o /yq "$url" && chmod +x /yq
 
@@ -67,7 +67,7 @@ COPY --link bin/scurl /bin/
 
 # helm templates kubernetes manifests.
 FROM apt-base as helm
-ARG HELM_VERSION=v3.18.3 # repo=helm/helm
+ARG HELM_VERSION=v3.18.4 # repo=helm/helm
 RUN url="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" ; \
     scurl "$url" | tar xzvf - --strip-components=1 -C /usr/local/bin linux-amd64/helm
 
