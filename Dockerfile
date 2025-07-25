@@ -45,13 +45,13 @@ RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5
 
 # just runs build/test recipes. Like `make` but a bit more ergonomic.
 FROM apt-base as just
-ARG JUST_VERSION=1.41.0 # repo=casey/just
+ARG JUST_VERSION=1.42.4 # repo=casey/just
 RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin just
 
 # yq is kind of like jq, but for YAML.
 FROM apt-base as yq
-ARG YQ_VERSION=v4.46.1 # repo=mikefarah/yq
+ARG YQ_VERSION=v4.47.1 # repo=mikefarah/yq
 RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" ; \
     scurl -o /yq "$url" && chmod +x /yq
 
@@ -80,7 +80,7 @@ RUN url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERS
 
 # kubectl controls kubernetes clusters.
 FROM apt-base as kubectl
-ARG KUBECTL_VERSION=v1.33.2 # repo=kubernetes/kubernetes
+ARG KUBECTL_VERSION=v1.33.3 # repo=kubernetes/kubernetes
 RUN url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" ; \
     scurl -o /usr/local/bin/kubectl "$url" && chmod +x /usr/local/bin/kubectl
 
@@ -98,7 +98,7 @@ COPY --link k3s-images.json "$K3S_IMAGES_JSON"
 
 # step is a tool for managing certificates.
 FROM apt-base as step
-ARG STEP_VERSION=v0.28.6 # repo=smallstep/cli
+ARG STEP_VERSION=v0.28.7 # repo=smallstep/cli
 RUN url="https://dl.smallstep.com/gh-release/cli/gh-release-header/${STEP_VERSION}/step_linux_${STEP_VERSION#v}_amd64.tar.gz" ; \
     scurl "$url" | tar xzvf - --strip-components=2 -C /usr/local/bin step_"${STEP_VERSION#v}"/bin/step
 
@@ -110,6 +110,20 @@ ENV K3S_IMAGES_JSON=/etc/k3s-images.json
 COPY --link --from=k3d /usr/local/etc/k3s-images.json "$K3S_IMAGES_JSON"
 COPY --link --from=kubectl /usr/local/bin/kubectl /bin/
 COPY --link --from=step /usr/local/bin/step /bin/
+
+FROM apt-base as syft
+ARG SYFT_VERSION=v1.29.0 # repo=anchore/syft
+RUN url="https://github.com/anchore/syft/releases/download/${SYFT_VERSION}/syft_${SYFT_VERSION#v}_linux_amd64.tar.gz" ; \
+    scurl "$url" | tar xzvf - -C /usr/local/bin syft
+
+FROM apt-base as grype
+ARG GRYPE_VERSION=v0.96.1 # repo=anchore/grype
+RUN url="https://github.com/anchore/grype/releases/download/${GRYPE_VERSION}/grype_${GRYPE_VERSION#v}_linux_amd64.tar.gz" ; \
+    scurl "$url" | tar xzvf - -C /usr/local/bin grype
+
+FROM scratch as tools-oci
+COPY --link --from=syft /usr/local/bin/syft /bin/
+COPY --link --from=grype /usr/local/bin/grype /bin/
 
 ##
 ## Linting tools
@@ -165,6 +179,11 @@ ARG CARGO_ACTION_FMT_VERSION=v1.0.4 # ignore
 RUN url="https://github.com/olix0r/cargo-action-fmt/releases/download/release%2F${CARGO_ACTION_FMT_VERSION}/cargo-action-fmt-${CARGO_ACTION_FMT_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin cargo-action-fmt
 
+FROM apt-base as cargo-auditable
+ARG CARGO_AUDITABLE_VERSION=v0.6.6 # repo=rust-secure-code/cargo-auditable
+RUN url="https://github.com/rust-secure-code/cargo-auditable/releases/download/${CARGO_AUDITABLE_VERSION}/cargo-auditable-x86_64-unknown-linux-gnu.tar.xz" ; \
+    scurl "$url" | tar xJvf - --strip-components=1 -C /usr/local/bin cargo-auditable-x86_64-unknown-linux-gnu/cargo-auditable
+
 # cargo-deny checks cargo dependencies for licensing and RUSTSEC security issues.
 FROM apt-base as cargo-deny
 ARG CARGO_DENY_VERSION=0.18.3 # repo=EmbarkStudios/cargo-deny
@@ -173,7 +192,7 @@ RUN url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_D
 
 # cargo-nextest is a nicer test runner.
 FROM apt-base as cargo-nextest
-ARG NEXTEST_VERSION=0.9.100 # repo=nextest-rs/nextest,prefix=cargo-nextest-
+ARG NEXTEST_VERSION=0.9.101 # repo=nextest-rs/nextest,prefix=cargo-nextest-
 RUN url="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-${NEXTEST_VERSION}/cargo-nextest-${NEXTEST_VERSION}-x86_64-unknown-linux-gnu.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin cargo-nextest
 
@@ -185,6 +204,7 @@ RUN url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAUL
 
 FROM scratch as tools-rust
 COPY --link --from=cargo-action-fmt /usr/local/bin/cargo-action-fmt /bin/
+COPY --link --from=cargo-auditable /usr/local/bin/cargo-auditable /bin/
 COPY --link --from=cargo-deny /usr/local/bin/cargo-deny /bin/
 COPY --link --from=cargo-nextest /usr/local/bin/cargo-nextest /bin/
 COPY --link --from=cargo-tarpaulin /usr/local/bin/cargo-tarpaulin /bin/
@@ -259,6 +279,7 @@ COPY --link --from=tools-k8s /etc/* /etc/
 ENV K3S_IMAGES_JSON=/etc/k3s-images.json
 COPY --link --from=tools-lint /bin/* /bin/
 COPY --link --from=tools-net /bin/* /bin/
+COPY --link --from=tools-oci /bin/* /bin/
 COPY --link --from=tools-rust /bin/* /bin/
 COPY --link --from=tools-script /bin/* /bin/
 
