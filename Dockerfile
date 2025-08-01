@@ -346,6 +346,7 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         g++-aarch64-linux-gnu \
         gcc-aarch64-linux-gnu \
+        binutils-aarch64-linux-gnu \
         libc6-dev-arm64-cross
 
 ##
