@@ -151,7 +151,7 @@ jobs:
 The `rust` container provides a Rust toolchain and associated utilities needed
 to build and test Rust code. The `rust-musl` container provides the same
 toolchain, but with the `musl` target installed with cross-compilation support
-for arm64 and armv7.
+for arm64.
 
 ### Rust in GitHub Actions
 
