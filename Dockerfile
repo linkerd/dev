@@ -339,18 +339,14 @@ COPY --link --from=just /usr/local/bin/just /usr/local/bin/
 FROM rust as rust-musl
 RUN rustup target add \
         aarch64-unknown-linux-musl \
-        armv7-unknown-linux-musleabihf \
         x86_64-unknown-linux-musl
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         g++-aarch64-linux-gnu \
-        g++-arm-linux-gnueabihf \
         gcc-aarch64-linux-gnu \
-        gcc-arm-linux-gnueabihf \
-        libc6-dev-arm64-cross \
-        libc6-dev-armhf-cross
+        libc6-dev-arm64-cross
 
 ##
 ## Devcontainer
@@ -383,7 +379,6 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
 # Link the gnu versions of ranlib to the musl toolchain.
 # See: https://github.com/linkerd/linkerd2/issues/13350
 RUN ln -s /usr/bin/aarch64-linux-gnu-ranlib /usr/bin/aarch64-linux-musl-ranlib && \
-    ln -s /usr/bin/arm-linux-gnueabihf-ranlib /usr/bin/arm-linux-musl-ranlib && \
     ln -s /usr/bin/x86_64-linux-gnu-ranlib /usr/bin/x86_64-linux-musl-ranlib
 
 RUN sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen \

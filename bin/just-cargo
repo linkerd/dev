@@ -20,8 +20,6 @@ _target := if target == '' {
 
 export RUSTFLAGS := env_var_or_default("RUSTFLAGS", "-D warnings") + if target == 'aarch64-unknown-linux-musl' {
         ' --codegen linker=aarch64-linux-gnu-gcc'
-    } else if target == 'armv7-unknown-linux-musleabihf' {
-        ' --codegen linker=arm-linux-gnueabihf-gcc'
     } else { '' }
 
 _llvm-version := '19'
@@ -45,20 +43,6 @@ export CC_aarch64_unknown_linux_musl := _clang
 export CFLAGS_aarch64_unknown_linux_musl := '--sysroot=/usr/aarch64-linux-gnu'
 export STRIP_aarch64_unknown_linux_musl := _strip
 export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS := _rustflags-self-contained
-
-# linux/arm/v7 + gnueabihf
-export AR_armv7_unknown_linux_gnueabihf := _ar
-export CC_armv7_unknown_linux_gnueabihf := _clang
-export CFLAGS_armv7_unknown_linux_gnueabihf := '--sysroot=/usr/arm-linux-gnueabihf'
-export STRIP_armv7_unknown_linux_gnueabihf := _strip
-export CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER := 'arm-linux-gnueabihf-gcc'
-
-# linux/arm/v7 + musl
-export AR_armv7_unknown_linux_musleabihf := _ar
-export CC_armv7_unknown_linux_musleabihf := _clang
-export CFLAGS_armv7_unknown_linux_musleabihf := '--sysroot=/usr/arm-linux-gnueabihf'
-export STRIP_armv7_unknown_linux_musleabihf := _strip
-export CARGO_TARGET_ARMV7_UNKNOWN_LINUX_MUSLEABIHF_RUSTFLAGS := _rustflags-self-contained
 
 # linux/amd64 + gnu
 export AR_x86_64_unknown_linux_gnu := _ar
