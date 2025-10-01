@@ -104,7 +104,7 @@ COPY --link --from=kubectl /usr/local/bin/kubectl /bin/
 COPY --link --from=docker.io/smallstep/step-cli:0.28.7 /usr/local/bin/step /bin/
 
 FROM scratch as tools-oci
-COPY --link --from=ghcr.io/sigstore/cosign/cosign:v2.4.1 /ko-app/cosign /bin/
+COPY --link --from=ghcr.io/sigstore/cosign/cosign:v2.6.0 /ko-app/cosign /bin/
 COPY --link --from=ghcr.io/oras-project/oras:v1.3.0 /bin/oras /bin/
 COPY --link --from=ghcr.io/anchore/syft:v1.33.0 /syft /bin/
 COPY --link --from=ghcr.io/anchore/grype:v0.96.1 /grype /bin/
