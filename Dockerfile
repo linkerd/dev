@@ -287,6 +287,7 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         cmake \
         curl \
         file \
+        gh \
         git \
         jo \
         jq \
