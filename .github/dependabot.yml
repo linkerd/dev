@@ -1,15 +1,11 @@
 version: 2
 updates:
   - package-ecosystem: "docker"
-    directory: "/.devcontainer"
+    directory: "/"
     schedule:
-      interval: daily
-      time: "05:00"
-      timezone: "UTC"
+      interval: "weekly"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
-      time: "04:00"
-      timezone: "UTC"
+      interval: "weekly"
