@@ -33,14 +33,12 @@ _rustflags-self-contained := "-Clink-self-contained=yes -Clinker=rust-lld -Clink
 # linux/arm64 + gnu
 export AR_aarch64_unknown_linux_gnu := _ar
 export CC_aarch64_unknown_linux_gnu := _clang
-export CFLAGS_aarch64_unknown_linux_gnu := '--sysroot=/usr/aarch64-linux-gnu'
 export STRIP_aarch64_unknown_linux_gnu := _strip
 export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER := 'aarch64-linux-gnu-gcc'
 
 # linux/arm64 + musl
 export AR_aarch64_unknown_linux_musl := _ar
 export CC_aarch64_unknown_linux_musl := _clang
-export CFLAGS_aarch64_unknown_linux_musl := '--sysroot=/usr/aarch64-linux-gnu'
 export STRIP_aarch64_unknown_linux_musl := _strip
 export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS := _rustflags-self-contained
 
