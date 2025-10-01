@@ -9,7 +9,7 @@ profile := 'debug' # or 'release'
 _release := if profile == 'release' { '--release' } else { '' }
 
 toolchain := ""
-export CARGO := env_var_or_default("CARGO", "cargo" + if toolchain != "" { " +" + toolchain } else { "" })
+export CARGO := env_var_or_default("CARGO", "cargo auditable" + if toolchain != "" { " +" + toolchain } else { "" })
 
 target := ''
 _target := if target == '' {
