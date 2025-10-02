@@ -86,7 +86,7 @@ RUN url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" ;
 
 # k3d runs kubernetes clusters in docker.
 FROM apt-base as k3d
-COPY --link --from=ghcr.io/k3d-io/k3d-tools:5.8.3 /bin/k3d /usr/local/bin/
+COPY --link --from=ghcr.io/k3d-io/k3d:5.8.3 /bin/k3d /usr/local/bin/
 # just-k3d is a utility that encodes many of the common k3d commands we use.
 COPY --link bin/just-k3d /usr/local/bin/
 # `K3S_IMAGES_JSON` configures just-k3d so that it uses a pinned version of k3s.
