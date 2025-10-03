@@ -5,27 +5,36 @@ inputs:
   # TODO(ver): CI should validate at this version matches the most recent release tag
   version:
     description: Container image version
-    default: v47
+    default: v48
 
 runs:
   using: composite
   steps:
-    - uses: docker/setup-buildx-action@v3
+    - name: "Hack mandb"
+      shell: bash
+      run: |
+        sudo dpkg-divert --local --rename --add /usr/bin/mandb
+        sudo ln -sf /bin/true /usr/bin/mandb
+
+    - shell: bash
+      run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jo umoci
 
     - name: Extract tools
       shell: bash
       run: |
         set -xeuo pipefail
 
-        build=$(mktemp -d '${{ runner.temp }}/build.XXXX')
-        echo 'FROM ghcr.io/linkerd/dev:${{ inputs.version }}-tools' > "$build"/Dockerfile
+        oci_dir=$(mktemp -d '${{ runner.temp }}/oci.XXXX')
+        bundle_dir=$(mktemp -d '${{ runner.temp }}/bundle.XXXX')
 
-        tools=$(mktemp -d '${{ runner.temp }}/tools.XXXX')
-        docker buildx build "$build" --output="type=local,dest=$tools/"
+        skopeo copy \
+          "docker://ghcr.io/linkerd/dev:${{ inputs.version }}-tools" \
+          "oci:$oci_dir:tools"
+
+        umoci unpack --rootless --image "$oci_dir:tools" "$bundle_dir"
+
+        tools="$bundle_dir/rootfs"
         (
           echo K3S_IMAGES_JSON="$tools/etc/k3s-images.json"
           echo PATH="$tools/bin:$PATH"
         ) >> "$GITHUB_ENV"
-
-    - shell: bash
-      run: sudo apt-get update && sudo apt-get install -y --no-install-recommends jo jq
