@@ -39,8 +39,9 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update
 
 # j5j Turns JSON5 into plain old JSON (i.e. to be processed by jq).
 FROM apt-base as j5j
-ARG J5J_VERSION=v0.2.0 # repo=olix0r/j5j
-RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
+ARG J5J_VERSION=v0.2.1 # repo=unleashed/j5j
+RUN arch=$(uname -m); \
+    url="https://github.com/unleashed/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-${arch}-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin j5j
 
 # just runs build/test recipes. Like `make` but a bit more ergonomic.
@@ -75,7 +76,8 @@ RUN url="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" ; \
 # helm-docs generates documentation from helm charts.
 FROM apt-base as helm-docs
 ARG HELM_DOCS_VERSION=v1.14.2 # repo=norwoodj/helm-docs
-RUN url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERSION/helm-docs_${HELM_DOCS_VERSION#v}_Linux_x86_64.tar.gz" ; \
+RUN arch=$(uname -m | sed -e 's/aarch/arm/'); \
+    url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERSION/helm-docs_${HELM_DOCS_VERSION#v}_Linux_${arch}.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin helm-docs
 
 # kubectl controls kubernetes clusters.
@@ -153,7 +155,8 @@ RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/pr
 # cargo-action-fmt formats `cargo build` JSON output to Github Actions annotations.
 FROM apt-base as cargo-action-fmt
 ARG CARGO_ACTION_FMT_VERSION=v1.0.4 # ignore
-RUN url="https://github.com/olix0r/cargo-action-fmt/releases/download/release%2F${CARGO_ACTION_FMT_VERSION}/cargo-action-fmt-${CARGO_ACTION_FMT_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
+RUN arch=$(uname -m); \
+    url="https://github.com/olix0r/cargo-action-fmt/releases/download/release%2F${CARGO_ACTION_FMT_VERSION}/cargo-action-fmt-${CARGO_ACTION_FMT_VERSION}-${arch}-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin cargo-action-fmt
 
 FROM apt-base as cargo-auditable
