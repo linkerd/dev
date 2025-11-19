@@ -28,14 +28,15 @@ export DOCKER_PROGRESS := env_var_or_default('DOCKER_PROGRESS', 'auto')
 
 all: sync-k3s-images build
 
-build: && _list-if-load
+build *args='': && _list-if-load
     #!/usr/bin/env bash
     set -euo pipefail
     for tgt in {{ targets }} ; do
         just output='{{ output }}' \
              image='{{ image }}' \
              version='{{ _version }}' \
-            _target "$tgt"
+            _target "$tgt" \
+            {{ args }}
     done
 
 _list-if-load:
@@ -104,13 +105,14 @@ _k3s-channels:
                 | {key:.id, value:$tag}
             ] | from_entries'
 
-_target target='':
+_target target='' *args='':
     @just \
         output='{{ output }}' \
         image='{{ image }}' \
         version='{{ _version }}' \
         _build --target='{{ target }}' \
-            {{ if _version == '' { '' } else { '--tag=' + image + ':' + _version + if target == 'devcontainer' { '' } else { '-' + target } } }}
+            {{ if _version == '' { '' } else { '--tag=' + image + ':' + _version + if target == 'devcontainer' { '' } else { '-' + target } } }} \
+        {{ args }}
 
 # Build the devcontainer image
 _build *args='':
