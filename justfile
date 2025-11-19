@@ -12,6 +12,7 @@ _tag :=  if _version != '' { "--tag=" + image + ':' + _version } else { "" }
 
 k3s-image := 'docker.io/rancher/k3s'
 
+dry_run := 'false'
 docker_arch := ''
 
 targets := 'go rust rust-musl tools devcontainer'
@@ -38,6 +39,7 @@ build *args='': && _list-if-load
              image='{{ image }}' \
              version='{{ _version }}' \
              docker_arch='{{ docker_arch }}' \
+             dry_run='{{ dry_run }}' \
             _target "$tgt" \
             {{ args }}
     done
@@ -61,10 +63,17 @@ list:
     fi
     for tgt in {{ targets }} ; do
         if [ "$tgt" == "devcontainer" ]; then
-            docker image ls {{ image }}:{{ _version }} | sed 1d
+            cmd="docker image ls {{ image }}:{{ _version }} | sed 1d"
         else
-            docker image ls {{ image }}:{{ _version }}-$tgt | sed 1d
+            cmd="docker image ls {{ image }}:{{ _version }}-$tgt | sed 1d"
         fi
+
+        echo "{{ style('error') }}$cmd{{ NORMAL }}"
+        if [ "{{ dry_run }}" = "true" ]; then
+            continue
+        fi
+
+        eval "$cmd"
     done
 
 # Fetch the latest version of k3s images and record their tags and digests.
@@ -114,17 +123,28 @@ _target target='' *args='':
         image='{{ image }}' \
         version='{{ _version }}' \
         docker_arch='{{ docker_arch }}' \
+        dry_run='{{ dry_run }}' \
         _build --target='{{ target }}' \
             {{ if _version == '' { '' } else { '--tag=' + image + ':' + _version + if target == 'devcontainer' { '' } else { '-' + target } } }} \
         {{ args }}
 
 # Build the devcontainer image
 _build *args='':
-    docker buildx build . {{ _tag }} --pull \
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    cmd="docker buildx build . {{ _tag }} --pull \
         --progress='{{ DOCKER_PROGRESS }}' \
         --output='{{ output }}' \
         {{ if docker_arch != '' { '--platform=' + docker_arch } else { '' } }} \
-        {{ args }}
+        {{ args }}"
+
+    echo "{{ style('error') }}$cmd{{ NORMAL }}"
+    if [ "{{ dry_run }}" = "true" ]; then
+        exit 0
+    fi
+
+    eval "$cmd"
 
 
 md-lint *patterns="'**/*.md' '!repos/**'":
