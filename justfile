@@ -12,6 +12,8 @@ _tag :=  if _version != '' { "--tag=" + image + ':' + _version } else { "" }
 
 k3s-image := 'docker.io/rancher/k3s'
 
+docker_arch := ''
+
 targets := 'go rust rust-musl tools devcontainer'
 
 load := 'false'
@@ -35,6 +37,7 @@ build *args='': && _list-if-load
         just output='{{ output }}' \
              image='{{ image }}' \
              version='{{ _version }}' \
+             docker_arch='{{ docker_arch }}' \
             _target "$tgt" \
             {{ args }}
     done
@@ -110,6 +113,7 @@ _target target='' *args='':
         output='{{ output }}' \
         image='{{ image }}' \
         version='{{ _version }}' \
+        docker_arch='{{ docker_arch }}' \
         _build --target='{{ target }}' \
             {{ if _version == '' { '' } else { '--tag=' + image + ':' + _version + if target == 'devcontainer' { '' } else { '-' + target } } }} \
         {{ args }}
@@ -119,6 +123,7 @@ _build *args='':
     docker buildx build . {{ _tag }} --pull \
         --progress='{{ DOCKER_PROGRESS }}' \
         --output='{{ output }}' \
+        {{ if docker_arch != '' { '--platform=' + docker_arch } else { '' } }} \
         {{ args }}
 
 
