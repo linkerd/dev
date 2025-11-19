@@ -33,13 +33,6 @@ _pull_policy := if _docker_bin_name == 'podman' {
     ''
 }
 
-# apt cache sharing mode hits a bug in buildah
-_apt_cache_sharing := if _docker_bin_name == 'podman' {
-    ''
-} else {
-    ',sharing=locked'
-}
-
 targets := 'go rust rust-musl tools devcontainer'
 
 load := 'false'
@@ -170,7 +163,6 @@ _build *args='':
         --progress='{{ DOCKER_PROGRESS }}' \
         {{ output }} \
         {{ if docker_arch != '' { '--platform=' + docker_arch } else { '' } }} \
-        --build-arg APT_CACHE_SHARING={{ _apt_cache_sharing }} \
         {{ args }}"
 
     echo "{{ style('error') }}$cmd{{ NORMAL }}"
