@@ -1,6 +1,14 @@
 version := ''
 image := 'ghcr.io/linkerd/dev'
-_tag :=  if version != '' { "--tag=" + image + ':' + version } else { "" }
+
+# Auto-detect latest git version if version is 'latest-git-tag'
+_version := if version == 'latest-git-tag' {
+    shell('which git > /dev/null || (echo >&2 "$1error$2: git not available" && exit 1) && git --git-dir="$3/.git" --work-tree="$3" tag -l --sort=-version:refname "v*" | head -n 1', style('error'), NORMAL, justfile_directory())
+} else {
+    version
+}
+
+_tag :=  if _version != '' { "--tag=" + image + ':' + _version } else { "" }
 
 k3s-image := 'docker.io/rancher/k3s'
 
@@ -26,7 +34,7 @@ build: && _list-if-load
     for tgt in {{ targets }} ; do
         just output='{{ output }}' \
              image='{{ image }}' \
-             version='{{ version }}' \
+             version='{{ _version }}' \
             _target "$tgt"
     done
 
@@ -36,22 +44,22 @@ _list-if-load:
     if [ '{{ load }}' = 'true' ] ; then
         just image='{{ image }}' \
              targets='{{ targets }}' \
-             version='{{ version }}' \
+             version='{{ _version }}' \
              list
      fi
 
 list:
     #!/usr/bin/env bash
     set -euo pipefail
-    if [ -z '{{ version }}' ]; then
+    if [ -z '{{ _version }}' ]; then
         echo "Usage: just version=<version> list" >&2
         exit 64
     fi
     for tgt in {{ targets }} ; do
         if [ "$tgt" == "devcontainer" ]; then
-            docker image ls {{ image }}:{{ version }} | sed 1d
+            docker image ls {{ image }}:{{ _version }} | sed 1d
         else
-            docker image ls {{ image }}:{{ version }}-$tgt | sed 1d
+            docker image ls {{ image }}:{{ _version }}-$tgt | sed 1d
         fi
     done
 
@@ -100,8 +108,9 @@ _target target='':
     @just \
         output='{{ output }}' \
         image='{{ image }}' \
+        version='{{ _version }}' \
         _build --target='{{ target }}' \
-            {{ if version == '' { '' } else { '--tag=' + image + ':' + version + if target == 'devcontainer' { '' } else { '-' + target } } }}
+            {{ if _version == '' { '' } else { '--tag=' + image + ':' + _version + if target == 'devcontainer' { '' } else { '-' + target } } }}
 
 # Build the devcontainer image
 _build *args='':
