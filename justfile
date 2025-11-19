@@ -26,6 +26,13 @@ podman_remote := if _docker_bin_name == 'podman' {
     'false'
 }
 
+# pull policy
+_pull_policy := if _docker_bin_name == 'podman' {
+    '=never'
+} else {
+    ''
+}
+
 targets := 'go rust rust-musl tools devcontainer'
 
 load := 'false'
@@ -152,7 +159,7 @@ _build *args='':
     #!/usr/bin/env bash
     set -euo pipefail
 
-    cmd="{{ docker_bin }} buildx build . {{ _tag }} --pull \
+    cmd="{{ docker_bin }} buildx build . {{ _tag }} --pull{{ _pull_policy }} \
         --progress='{{ DOCKER_PROGRESS }}' \
         {{ output }} \
         {{ if docker_arch != '' { '--platform=' + docker_arch } else { '' } }} \
