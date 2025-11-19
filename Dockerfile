@@ -395,6 +395,12 @@ RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,ro \
 ENV CC=clang-19 \
     CXX=clang++-19
 
+# Install docker-compose since it breaks in the docker-debian script on arm64
+RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/apt \
+    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/cache/apt,target=/var/cache/apt${APT_CACHE_SHARING} \
+    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists${APT_CACHE_SHARING} \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y docker-compose
+
 # Use microsoft's Docker setup script to install the Docker CLI.
 #
 # A distinct cache is used because the script adds an apt repo that we don't
