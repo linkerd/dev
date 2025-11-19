@@ -15,17 +15,32 @@ k3s-image := 'docker.io/rancher/k3s'
 dry_run := 'false'
 docker_arch := ''
 
+# Detect docker_bin if not specified: try docker first, then podman
+docker_bin := shell('which docker 2> /dev/null || which podman 2> /dev/null || (echo >&2 "$1error$2: neither docker nor podman found" && exit 1)', style('error'), NORMAL)
+# Extract basename of docker_bin to identify implementation
+_docker_bin_name := file_name(docker_bin)
+# Auto-detect if podman is in remote mode (unless explicitly overridden)
+podman_remote := if _docker_bin_name == 'podman' {
+    shell('if $1 info 2>/dev/null | grep -q "remoteSocket"; then echo "true"; else echo "false"; fi', docker_bin)
+} else {
+    'false'
+}
+
 targets := 'go rust rust-musl tools devcontainer'
 
 load := 'false'
 push := 'false'
-output := if push == 'true' {
-        'type=registry'
-    } else if load == 'true' {
-        'type=docker'
-    } else {
-        'type=image'
-    }
+
+# Remote mode cannot use the --output flag
+output := if podman_remote == 'true' {
+    ''
+} else if push == 'true' {
+    '--output=type=registry'
+} else if load == 'true' {
+    '--output=type=docker'
+} else {
+    '--output=type=image'
+}
 
 export DOCKER_PROGRESS := env_var_or_default('DOCKER_PROGRESS', 'auto')
 
@@ -40,6 +55,8 @@ build *args='': && _list-if-load
              version='{{ _version }}' \
              docker_arch='{{ docker_arch }}' \
              dry_run='{{ dry_run }}' \
+             docker_bin='{{ docker_bin }}' \
+             podman_remote='{{ podman_remote }}' \
             _target "$tgt" \
             {{ args }}
     done
@@ -63,9 +80,9 @@ list:
     fi
     for tgt in {{ targets }} ; do
         if [ "$tgt" == "devcontainer" ]; then
-            cmd="docker image ls {{ image }}:{{ _version }} | sed 1d"
+            cmd="{{ docker_bin }} image ls {{ image }}:{{ _version }} | sed 1d"
         else
-            cmd="docker image ls {{ image }}:{{ _version }}-$tgt | sed 1d"
+            cmd="{{ docker_bin }} image ls {{ image }}:{{ _version }}-$tgt | sed 1d"
         fi
 
         echo "{{ style('error') }}$cmd{{ NORMAL }}"
@@ -124,6 +141,8 @@ _target target='' *args='':
         version='{{ _version }}' \
         docker_arch='{{ docker_arch }}' \
         dry_run='{{ dry_run }}' \
+        docker_bin='{{ docker_bin }}' \
+        podman_remote='{{ podman_remote }}' \
         _build --target='{{ target }}' \
             {{ if _version == '' { '' } else { '--tag=' + image + ':' + _version + if target == 'devcontainer' { '' } else { '-' + target } } }} \
         {{ args }}
@@ -133,9 +152,9 @@ _build *args='':
     #!/usr/bin/env bash
     set -euo pipefail
 
-    cmd="docker buildx build . {{ _tag }} --pull \
+    cmd="{{ docker_bin }} buildx build . {{ _tag }} --pull \
         --progress='{{ DOCKER_PROGRESS }}' \
-        --output='{{ output }}' \
+        {{ output }} \
         {{ if docker_arch != '' { '--platform=' + docker_arch } else { '' } }} \
         {{ args }}"
 
