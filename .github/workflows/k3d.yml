@@ -7,7 +7,7 @@ on:
       - bin/just-k3d
       - Dockerfile
       - justfile
-      - k3d-images.json
+      - k3s-images.json
 
 permissions:
   contents: read
