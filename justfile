@@ -1,33 +1,71 @@
 version := ''
 image := 'ghcr.io/linkerd/dev'
-_tag :=  if version != '' { "--tag=" + image + ':' + version } else { "" }
+
+# Auto-detect latest git version if version is 'latest-git-tag'
+_version := if version == 'latest-git-tag' {
+    shell('which git > /dev/null || (echo >&2 "$1error$2: git not available" && exit 1) && git --git-dir="$3/.git" --work-tree="$3" tag -l --sort=-version:refname "v*" | head -n 1', style('error'), NORMAL, justfile_directory())
+} else {
+    version
+}
+
+_tag :=  if _version != '' { "--tag=" + image + ':' + _version } else { "" }
 
 k3s-image := 'docker.io/rancher/k3s'
+
+dry_run := 'false'
+docker_arch := ''
+
+# Detect docker_bin if not specified: try docker first, then podman
+docker_bin := shell('which docker 2> /dev/null || which podman 2> /dev/null || (echo >&2 "$1error$2: neither docker nor podman found" && exit 1)', style('error'), NORMAL)
+# Extract basename of docker_bin to identify implementation
+_docker_bin_name := file_name(docker_bin)
+# Auto-detect if podman is in remote mode (unless explicitly overridden)
+podman_remote := if _docker_bin_name == 'podman' {
+    shell('if $1 info 2>/dev/null | grep -q "remoteSocket"; then echo "true"; else echo "false"; fi', docker_bin)
+} else {
+    'false'
+}
+
+# pull policy
+_pull_policy := if _docker_bin_name == 'podman' {
+    '=never'
+} else {
+    ''
+}
 
 targets := 'go rust rust-musl tools devcontainer'
 
 load := 'false'
 push := 'false'
-output := if push == 'true' {
-        'type=registry'
-    } else if load == 'true' {
-        'type=docker'
-    } else {
-        'type=image'
-    }
+
+# Remote mode cannot use the --output flag
+output := if podman_remote == 'true' {
+    ''
+} else if push == 'true' {
+    '--output=type=registry'
+} else if load == 'true' {
+    '--output=type=docker'
+} else {
+    '--output=type=image'
+}
 
 export DOCKER_PROGRESS := env_var_or_default('DOCKER_PROGRESS', 'auto')
 
 all: sync-k3s-images build
 
-build: && _list-if-load
+build *args='': && _list-if-load
     #!/usr/bin/env bash
     set -euo pipefail
     for tgt in {{ targets }} ; do
         just output='{{ output }}' \
              image='{{ image }}' \
-             version='{{ version }}' \
-            _target "$tgt"
+             version='{{ _version }}' \
+             docker_arch='{{ docker_arch }}' \
+             dry_run='{{ dry_run }}' \
+             docker_bin='{{ docker_bin }}' \
+             podman_remote='{{ podman_remote }}' \
+            _target "$tgt" \
+            {{ args }}
     done
 
 _list-if-load:
@@ -36,23 +74,30 @@ _list-if-load:
     if [ '{{ load }}' = 'true' ] ; then
         just image='{{ image }}' \
              targets='{{ targets }}' \
-             version='{{ version }}' \
+             version='{{ _version }}' \
              list
      fi
 
 list:
     #!/usr/bin/env bash
     set -euo pipefail
-    if [ -z '{{ version }}' ]; then
+    if [ -z '{{ _version }}' ]; then
         echo "Usage: just version=<version> list" >&2
         exit 64
     fi
     for tgt in {{ targets }} ; do
         if [ "$tgt" == "devcontainer" ]; then
-            docker image ls {{ image }}:{{ version }} | sed 1d
+            cmd="{{ docker_bin }} image ls {{ image }}:{{ _version }} | sed 1d"
         else
-            docker image ls {{ image }}:{{ version }}-$tgt | sed 1d
+            cmd="{{ docker_bin }} image ls {{ image }}:{{ _version }}-$tgt | sed 1d"
         fi
+
+        echo "{{ style('error') }}$cmd{{ NORMAL }}"
+        if [ "{{ dry_run }}" = "true" ]; then
+            continue
+        fi
+
+        eval "$cmd"
     done
 
 # Fetch the latest version of k3s images and record their tags and digests.
@@ -96,19 +141,36 @@ _k3s-channels:
                 | {key:.id, value:$tag}
             ] | from_entries'
 
-_target target='':
+_target target='' *args='':
     @just \
         output='{{ output }}' \
         image='{{ image }}' \
+        version='{{ _version }}' \
+        docker_arch='{{ docker_arch }}' \
+        dry_run='{{ dry_run }}' \
+        docker_bin='{{ docker_bin }}' \
+        podman_remote='{{ podman_remote }}' \
         _build --target='{{ target }}' \
-            {{ if version == '' { '' } else { '--tag=' + image + ':' + version + if target == 'devcontainer' { '' } else { '-' + target } } }}
+            {{ if _version == '' { '' } else { '--tag=' + image + ':' + _version + if target == 'devcontainer' { '' } else { '-' + target } } }} \
+        {{ args }}
 
 # Build the devcontainer image
 _build *args='':
-    docker buildx build . {{ _tag }} --pull \
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    cmd="{{ docker_bin }} buildx build . {{ _tag }} --pull{{ _pull_policy }} \
         --progress='{{ DOCKER_PROGRESS }}' \
-        --output='{{ output }}' \
-        {{ args }}
+        {{ output }} \
+        {{ if docker_arch != '' { '--platform=' + docker_arch } else { '' } }} \
+        {{ args }}"
+
+    echo "{{ style('error') }}$cmd{{ NORMAL }}"
+    if [ "{{ dry_run }}" = "true" ]; then
+        exit 0
+    fi
+
+    eval "$cmd"
 
 
 md-lint *patterns="'**/*.md' '!repos/**'":

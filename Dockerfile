@@ -39,20 +39,22 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update
 
 # j5j Turns JSON5 into plain old JSON (i.e. to be processed by jq).
 FROM apt-base as j5j
-ARG J5J_VERSION=v0.2.0 # repo=olix0r/j5j
-RUN url="https://github.com/olix0r/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
+ARG J5J_VERSION=v0.2.1 # repo=unleashed/j5j
+RUN arch=$(uname -m); \
+    url="https://github.com/unleashed/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-${arch}-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin j5j
 
 # just runs build/test recipes. Like `make` but a bit more ergonomic.
 FROM apt-base as just
 ARG JUST_VERSION=1.43.0 # repo=casey/just
-RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
+RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-$(uname -m)-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin just
 
 # yq is kind of like jq, but for YAML.
 FROM apt-base as yq
 ARG YQ_VERSION=v4.47.2 # repo=mikefarah/yq
-RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" ; \
+RUN arch=$(uname -m | sed -e 's/aarch/arm/' -e 's/x86_/amd/'); \
+    url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_${arch}" ; \
     scurl -o /yq "$url" && chmod +x /yq
 
 FROM scratch as tools-script
@@ -68,20 +70,23 @@ COPY --link bin/scurl /bin/
 # helm templates kubernetes manifests.
 FROM apt-base as helm
 ARG HELM_VERSION=v3.19.0 # repo=helm/helm
-RUN url="https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" ; \
-    scurl "$url" | tar xzvf - --strip-components=1 -C /usr/local/bin linux-amd64/helm
+RUN arch=$(uname -m | sed -e 's/aarch/arm/' -e 's/x86_/amd/'); \
+    url="https://get.helm.sh/helm-${HELM_VERSION}-linux-${arch}.tar.gz" ; \
+    scurl "$url" | tar xzvf - --strip-components=1 -C /usr/local/bin linux-${arch}/helm
 
 
 # helm-docs generates documentation from helm charts.
 FROM apt-base as helm-docs
 ARG HELM_DOCS_VERSION=v1.14.2 # repo=norwoodj/helm-docs
-RUN url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERSION/helm-docs_${HELM_DOCS_VERSION#v}_Linux_x86_64.tar.gz" ; \
+RUN arch=$(uname -m | sed -e 's/aarch/arm/'); \
+    url="https://github.com/norwoodj/helm-docs/releases/download/$HELM_DOCS_VERSION/helm-docs_${HELM_DOCS_VERSION#v}_Linux_${arch}.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin helm-docs
 
 # kubectl controls kubernetes clusters.
 FROM apt-base as kubectl
 ARG KUBECTL_VERSION=v1.34.1 # repo=kubernetes/kubernetes
-RUN url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" ; \
+RUN arch=$(uname -m | sed -e 's/aarch/arm/'); \
+    url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${arch}/kubectl" ; \
     scurl -o /usr/local/bin/kubectl "$url" && chmod +x /usr/local/bin/kubectl
 
 # k3d runs kubernetes clusters in docker.
@@ -116,7 +121,8 @@ COPY --link --from=ghcr.io/anchore/grype:v0.96.1 /grype /bin/
 # actionlint lints github actions workflows.
 FROM apt-base as actionlint
 ARG ACTIONLINT_VERSION=v1.7.7 # repo=rhysd/actionlint
-RUN url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" ; \
+RUN arch=$(uname -m | sed -e 's/aarch/arm/' -e 's/x86_/amd/'); \
+    url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_${arch}.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin actionlint
 
 # checksec checks binaries for security issues.
@@ -137,7 +143,8 @@ COPY --link bin/action-* bin/just-dev bin/just-sh /bin/
 
 FROM apt-base as protobuf
 ARG PROTOC_VERSION=v32.1 # repo=protocolbuffers/protobuf
-RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/protoc-${PROTOC_VERSION#v}-linux-$(uname -m).zip" ; \
+RUN arch=$(uname -m | sed -e 's/aarch/aarch_/'); \
+    url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/protoc-${PROTOC_VERSION#v}-linux-${arch}.zip" ; \
     cd $(mktemp -d) && \
     scurl -o protoc.zip  "$url" && \
     unzip protoc.zip bin/protoc include/** && \
@@ -153,30 +160,36 @@ RUN url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/pr
 # cargo-action-fmt formats `cargo build` JSON output to Github Actions annotations.
 FROM apt-base as cargo-action-fmt
 ARG CARGO_ACTION_FMT_VERSION=v1.0.4 # ignore
-RUN url="https://github.com/olix0r/cargo-action-fmt/releases/download/release%2F${CARGO_ACTION_FMT_VERSION}/cargo-action-fmt-${CARGO_ACTION_FMT_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
+RUN arch=$(uname -m); \
+    url="https://github.com/olix0r/cargo-action-fmt/releases/download/release%2F${CARGO_ACTION_FMT_VERSION}/cargo-action-fmt-${CARGO_ACTION_FMT_VERSION}-${arch}-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin cargo-action-fmt
 
 FROM apt-base as cargo-auditable
-ARG CARGO_AUDITABLE_VERSION=v0.6.6 # repo=rust-secure-code/cargo-auditable
-RUN url="https://github.com/rust-secure-code/cargo-auditable/releases/download/${CARGO_AUDITABLE_VERSION}/cargo-auditable-x86_64-unknown-linux-gnu.tar.xz" ; \
-    scurl "$url" | tar xJvf - --strip-components=1 -C /usr/local/bin cargo-auditable-x86_64-unknown-linux-gnu/cargo-auditable
+ARG CARGO_AUDITABLE_VERSION=v0.7.2 # repo=rust-secure-code/cargo-auditable
+RUN arch=$(uname -m); \
+    libc=$([ "$arch" = "x86_64" ] && echo "musl" || echo "gnu"); \
+    url="https://github.com/rust-secure-code/cargo-auditable/releases/download/${CARGO_AUDITABLE_VERSION}/cargo-auditable-${arch}-unknown-linux-${libc}.tar.xz" ; \
+    scurl "$url" | tar xJvf - --strip-components=1 -C /usr/local/bin cargo-auditable-${arch}-unknown-linux-${libc}/cargo-auditable
 
 # cargo-deny checks cargo dependencies for licensing and RUSTSEC security issues.
 FROM apt-base as cargo-deny
 ARG CARGO_DENY_VERSION=0.18.5 # repo=EmbarkStudios/cargo-deny
-RUN url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl.tar.gz" ; \
-    scurl "$url" | tar zvxf - --strip-components=1 -C /usr/local/bin "cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl/cargo-deny"
+RUN arch=$(uname -m); \
+    url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/cargo-deny-${CARGO_DENY_VERSION}-${arch}-unknown-linux-musl.tar.gz" ; \
+    scurl "$url" | tar zvxf - --strip-components=1 -C /usr/local/bin "cargo-deny-${CARGO_DENY_VERSION}-${arch}-unknown-linux-musl/cargo-deny"
 
 # cargo-nextest is a nicer test runner.
 FROM apt-base as cargo-nextest
 ARG NEXTEST_VERSION=0.9.104 # repo=nextest-rs/nextest,prefix=cargo-nextest-
-RUN url="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-${NEXTEST_VERSION}/cargo-nextest-${NEXTEST_VERSION}-x86_64-unknown-linux-gnu.tar.gz" ; \
+RUN arch=$(uname -m); \
+    url="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-${NEXTEST_VERSION}/cargo-nextest-${NEXTEST_VERSION}-${arch}-unknown-linux-gnu.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin cargo-nextest
 
 # cargo-tarpaulin is a code coverage tool.
 FROM apt-base as cargo-tarpaulin
 ARG CARGO_TARPAULIN_VERSION=0.32.8 # repo=xd009642/tarpaulin
-RUN url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAULIN_VERSION}/cargo-tarpaulin-x86_64-unknown-linux-musl.tar.gz" ;\
+RUN arch=$(uname -m); \
+    url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAULIN_VERSION}/cargo-tarpaulin-${arch}-unknown-linux-musl.tar.gz" ;\
     scurl "$url" | tar xzvf - -C /usr/local/bin cargo-tarpaulin
 
 FROM scratch as tools-rust
@@ -381,6 +394,12 @@ RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,ro \
     DEBIAN_FRONTEND=noninteractive apt-get install -y clang-19 llvm-19
 ENV CC=clang-19 \
     CXX=clang++-19
+
+# Install docker-compose since it breaks in the docker-debian script on arm64
+RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/apt \
+    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/cache/apt,target=/var/cache/apt${APT_CACHE_SHARING} \
+    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists${APT_CACHE_SHARING} \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y docker-compose
 
 # Use microsoft's Docker setup script to install the Docker CLI.
 #
