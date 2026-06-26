@@ -73,7 +73,7 @@ sync-k3s-images:
         | jq . > k3s-images.json
     jq . k3s-images.json
 
-minimum-k8s := '20'
+minimum-k8s := '31'
 
 update-versions:
     go run ./update-versions.go --in-place
