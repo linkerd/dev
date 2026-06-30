@@ -231,3 +231,15 @@ Push all images:
 ```sh
 :; just push=true version=vNN build
 ```
+
+## Dev Container Package Permissions
+
+A minimal number of people have access to push new Linkerd dev containers.
+To modify the user with this permission, navigate to:
+
+```text
+linkerd > Packages > dev
+```
+
+and select `Package settings` in the right-hand navigation.  See the
+`Manage access` section.
