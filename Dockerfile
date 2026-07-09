@@ -7,13 +7,13 @@
 
 ARG GO_TAG=1.26
 ARG RUST_TAG=1.90.0
+ARG DEBIAN_RELEASE=trixie
 
 # These layers include Debian apt caches, so layers that extend `apt-base`
 # should not be published. Instead, these layers should be used to provide
 # cached data to individual `RUN` commands.
 
-FROM docker.io/library/debian:bookworm-slim as apt-base
-RUN echo 'deb http://deb.debian.org/debian bookworm-backports main' >>/etc/apt/sources.list
+FROM docker.io/library/debian:${DEBIAN_RELEASE}-backports AS apt-base
 RUN DEBIAN_FRONTEND=noninteractive apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y curl unzip xz-utils
 COPY --link bin/scurl /usr/local/bin/
@@ -28,21 +28,26 @@ RUN apt-get update && apt-get install nodejs -y
 # See https://apt.llvm.org/.
 FROM apt-base as apt-llvm
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y gnupg2
-RUN curl --tlsv1.2 -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key |apt-key add -
-RUN ( echo 'deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-19 main' \
-    && echo 'deb-src http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-19 main' ) >> /etc/apt/sources.list
+RUN /usr/bin/curl --tlsv1.2 -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key |/usr/bin/tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+
+ARG DEBIAN_RELEASE
+# https://docs.docker.com/reference/dockerfile#understand-how-arg-and-from-interact
+# ^ declare arg to use the default value in RUN below
+RUN ( echo "deb http://apt.llvm.org/${DEBIAN_RELEASE}/ llvm-toolchain-${DEBIAN_RELEASE}-22 main" \
+    && echo "deb-src http://apt.llvm.org/${DEBIAN_RELEASE}/ llvm-toolchain-${DEBIAN_RELEASE}-22 main" ) > /etc/apt/sources.list.d/llvm-toolchain.list
+RUN cat /etc/apt/sources.list.d/llvm-toolchain.list
 RUN DEBIAN_FRONTEND=noninteractive apt-get update
 
 ##
 ## Scripting tools
 ##
 
-# j5j Turns JSON5 into plain old JSON (i.e. to be processed by jq).
-FROM apt-base as j5j
-ARG J5J_VERSION=v0.2.1 # repo=unleashed/j5j
-RUN arch=$(uname -m); \
-    url="https://github.com/unleashed/j5j/releases/download/${J5J_VERSION}/j5j-${J5J_VERSION}-${arch}-unknown-linux-musl.tar.gz" ; \
-    scurl "$url" | tar zvxf - -C /usr/local/bin j5j
+# json5 transforms json
+FROM apt-base AS apt-json5
+RUN DEBIAN_FRONTEND=noninteractive apt-get update
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y node-json5
+# consumers use j5j as the interface to stripping comments from json
+RUN ln -s /usr/bin/json5 /usr/local/bin/j5j
 
 # just runs build/test recipes. Like `make` but a bit more ergonomic.
 FROM apt-base as just
@@ -57,9 +62,6 @@ RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linu
     scurl -o /yq "$url" && chmod +x /yq
 
 FROM scratch as tools-script
-COPY --link --from=j5j /usr/local/bin/j5j /bin/
-COPY --link --from=just /usr/local/bin/just /bin/
-COPY --link --from=yq /yq /bin/
 COPY --link bin/scurl /bin/
 
 ##
@@ -282,7 +284,7 @@ ENV PROTOC_NO_VENDOR=1 \
     PROTOC_INCLUDE=/usr/local/include
 
 # A Rust build environment.
-FROM docker.io/library/rust:${RUST_TAG}-slim-bookworm as rust
+FROM docker.io/library/rust:${RUST_TAG}-slim-${DEBIAN_RELEASE} as rust
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
@@ -316,7 +318,6 @@ ENV CARGO_INCREMENTAL=0 \
     RUSTUP_MAX_RETRIES=10
 ENTRYPOINT ["/usr/local/bin/just-cargo"]
 
-COPY --link --from=just /usr/local/bin/just /usr/local/bin/
 FROM rust as rust-musl
 RUN rustup target add \
         aarch64-unknown-linux-musl \
@@ -334,7 +335,7 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
 ## Devcontainer
 ##
 
-FROM docker.io/library/debian:bookworm as devcontainer
+FROM docker.io/library/debian:${DEBIAN_RELEASE} AS devcontainer
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
@@ -343,6 +344,7 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         curl \
         dnsutils \
         file \
+        git \
         iproute2 \
         jo \
         jq \
@@ -372,12 +374,6 @@ RUN groupadd --gid=1000 code \
     && echo "code ALL=(root) NOPASSWD:ALL" >/etc/sudoers.d/code \
     && chmod 0440 /etc/sudoers.d/code
 
-# git v2.34+ has new subcommands and supports code signing via SSH.
-RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
-    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -t bookworm-backports git
-
 RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-llvm,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,from=apt-llvm,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
@@ -391,17 +387,14 @@ RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/a
     --mount=type=cache,id=apt-docker,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists${APT_CACHE_SHARING} \
     DEBIAN_FRONTEND=noninteractive apt-get install -y docker-compose
 
-# Use microsoft's Docker setup script to install the Docker CLI.
-#
+# devcontainers/features: install docker do not use moby (not supported on trixie)
 # A distinct cache is used because the script adds an apt repo that we don't
 # want to pull in for other layers.
-#
-# TODO(ver): replace this with a devcontainer feature?
 RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/apt \
     --mount=type=cache,id=apt-docker,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,id=apt-docker,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
     --mount=type=bind,from=tools,source=/bin/scurl,target=/usr/local/bin/scurl \
-    scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh | bash -s
+    scurl https://raw.githubusercontent.com/devcontainers/features/refs/heads/main/src/docker-outside-of-docker/install.sh | MOBY=false bash -s
 ENV DOCKER_BUILDKIT=1
 
 ARG MARKDOWNLINT_VERSION=0.22.1
