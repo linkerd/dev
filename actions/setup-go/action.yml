@@ -5,11 +5,11 @@ inputs:
   # TODO(ver): CI should validate at this version matches that in the Dockerfile
   version:
     description: Go version
-    default: 1.25
+    default: 1.26
 
 runs:
   using: composite
   steps:
-    - uses: actions/setup-go@v5
+    - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
       with:
         go-version: '${{ inputs.version }}'

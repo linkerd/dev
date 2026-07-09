@@ -5,7 +5,7 @@
 ##
 
 
-ARG GO_TAG=1.25
+ARG GO_TAG=1.26
 ARG RUST_TAG=1.90.0
 
 # These layers include Debian apt caches, so layers that extend `apt-base`
@@ -20,7 +20,7 @@ COPY --link bin/scurl /usr/local/bin/
 
 FROM apt-base as apt-node
 RUN apt-get install -y gnupg2
-ARG NODE_MAJOR=20
+ARG NODE_MAJOR=26
 RUN mkdir -p /etc/apt/keyrings && scurl https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" >/etc/apt/sources.list.d/nodesource.list
 RUN apt-get update && apt-get install nodejs -y
@@ -46,13 +46,13 @@ RUN arch=$(uname -m); \
 
 # just runs build/test recipes. Like `make` but a bit more ergonomic.
 FROM apt-base as just
-ARG JUST_VERSION=1.43.0 # repo=casey/just
+ARG JUST_VERSION=1.54.0 # repo=casey/just
 RUN url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-$(uname -m)-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin just
 
 # yq is kind of like jq, but for YAML.
 FROM apt-base as yq
-ARG YQ_VERSION=v4.47.2 # repo=mikefarah/yq
+ARG YQ_VERSION=v4.53.3 # repo=mikefarah/yq
 RUN arch=$(uname -m | sed -e 's/aarch/arm/' -e 's/x86_/amd/'); \
     url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_${arch}" ; \
     scurl -o /yq "$url" && chmod +x /yq
@@ -69,11 +69,10 @@ COPY --link bin/scurl /bin/
 
 # helm templates kubernetes manifests.
 FROM apt-base as helm
-ARG HELM_VERSION=v3.19.0 # repo=helm/helm
+ARG HELM_VERSION=v3.21.2 # repo=helm/helm
 RUN arch=$(uname -m | sed -e 's/aarch/arm/' -e 's/x86_/amd/'); \
     url="https://get.helm.sh/helm-${HELM_VERSION}-linux-${arch}.tar.gz" ; \
     scurl "$url" | tar xzvf - --strip-components=1 -C /usr/local/bin linux-${arch}/helm
-
 
 # helm-docs generates documentation from helm charts.
 FROM apt-base as helm-docs
@@ -84,14 +83,14 @@ RUN arch=$(uname -m | sed -e 's/aarch/arm/'); \
 
 # kubectl controls kubernetes clusters.
 FROM apt-base as kubectl
-ARG KUBECTL_VERSION=v1.34.1 # repo=kubernetes/kubernetes
+ARG KUBECTL_VERSION=v1.36.2 # repo=kubernetes/kubernetes
 RUN arch=$(uname -m | sed -e 's/aarch/arm/'); \
     url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${arch}/kubectl" ; \
     scurl -o /usr/local/bin/kubectl "$url" && chmod +x /usr/local/bin/kubectl
 
 # k3d runs kubernetes clusters in docker.
 FROM apt-base as k3d
-COPY --link --from=ghcr.io/k3d-io/k3d:5.8.3 /bin/k3d /usr/local/bin/
+COPY --link --from=ghcr.io/k3d-io/k3d:5.9.0 /bin/k3d /usr/local/bin/
 # just-k3d is a utility that encodes many of the common k3d commands we use.
 COPY --link bin/just-k3d /usr/local/bin/
 # `K3S_IMAGES_JSON` configures just-k3d so that it uses a pinned version of k3s.
@@ -120,7 +119,7 @@ COPY --link --from=ghcr.io/anchore/grype:v0.96.1 /grype /bin/
 
 # actionlint lints github actions workflows.
 FROM apt-base as actionlint
-ARG ACTIONLINT_VERSION=v1.7.7 # repo=rhysd/actionlint
+ARG ACTIONLINT_VERSION=v1.7.12 # repo=rhysd/actionlint
 RUN arch=$(uname -m | sed -e 's/aarch/arm/' -e 's/x86_/amd/'); \
     url="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_${arch}.tar.gz" ; \
     scurl "$url" | tar xzvf - -C /usr/local/bin actionlint
@@ -142,7 +141,7 @@ COPY --link bin/action-* bin/just-dev bin/just-sh /bin/
 ##
 
 FROM apt-base as protobuf
-ARG PROTOC_VERSION=v32.1 # repo=protocolbuffers/protobuf
+ARG PROTOC_VERSION=v35.1 # repo=protocolbuffers/protobuf
 RUN arch=$(uname -m | sed -e 's/aarch/aarch_/'); \
     url="https://github.com/google/protobuf/releases/download/$PROTOC_VERSION/protoc-${PROTOC_VERSION#v}-linux-${arch}.zip" ; \
     cd $(mktemp -d) && \
@@ -165,7 +164,7 @@ RUN arch=$(uname -m); \
     scurl "$url" | tar zvxf - -C /usr/local/bin cargo-action-fmt
 
 FROM apt-base as cargo-auditable
-ARG CARGO_AUDITABLE_VERSION=v0.7.2 # repo=rust-secure-code/cargo-auditable
+ARG CARGO_AUDITABLE_VERSION=v0.7.5 # repo=rust-secure-code/cargo-auditable
 RUN arch=$(uname -m); \
     libc=$([ "$arch" = "x86_64" ] && echo "musl" || echo "gnu"); \
     url="https://github.com/rust-secure-code/cargo-auditable/releases/download/${CARGO_AUDITABLE_VERSION}/cargo-auditable-${arch}-unknown-linux-${libc}.tar.xz" ; \
@@ -173,21 +172,21 @@ RUN arch=$(uname -m); \
 
 # cargo-deny checks cargo dependencies for licensing and RUSTSEC security issues.
 FROM apt-base as cargo-deny
-ARG CARGO_DENY_VERSION=0.18.5 # repo=EmbarkStudios/cargo-deny
+ARG CARGO_DENY_VERSION=0.19.9 # repo=EmbarkStudios/cargo-deny
 RUN arch=$(uname -m); \
     url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/cargo-deny-${CARGO_DENY_VERSION}-${arch}-unknown-linux-musl.tar.gz" ; \
     scurl "$url" | tar zvxf - --strip-components=1 -C /usr/local/bin "cargo-deny-${CARGO_DENY_VERSION}-${arch}-unknown-linux-musl/cargo-deny"
 
 # cargo-nextest is a nicer test runner.
 FROM apt-base as cargo-nextest
-ARG NEXTEST_VERSION=0.9.104 # repo=nextest-rs/nextest,prefix=cargo-nextest-
+ARG NEXTEST_VERSION=0.9.138 # repo=nextest-rs/nextest,prefix=cargo-nextest-
 RUN arch=$(uname -m); \
     url="https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-${NEXTEST_VERSION}/cargo-nextest-${NEXTEST_VERSION}-${arch}-unknown-linux-gnu.tar.gz" ; \
     scurl "$url" | tar zvxf - -C /usr/local/bin cargo-nextest
 
 # cargo-tarpaulin is a code coverage tool.
 FROM apt-base as cargo-tarpaulin
-ARG CARGO_TARPAULIN_VERSION=0.32.8 # repo=xd009642/tarpaulin
+ARG CARGO_TARPAULIN_VERSION=0.35.5 # repo=xd009642/tarpaulin
 RUN arch=$(uname -m); \
     url="https://github.com/xd009642/tarpaulin/releases/download/${CARGO_TARPAULIN_VERSION}/cargo-tarpaulin-${arch}-unknown-linux-musl.tar.gz" ;\
     scurl "$url" | tar xzvf - -C /usr/local/bin cargo-tarpaulin
@@ -214,8 +213,8 @@ FROM docker.io/library/golang:${GO_TAG} as go-outline
 RUN go install github.com/ramya-rao-a/go-outline@latest
 
 FROM docker.io/library/golang:${GO_TAG} as go-protoc
-ARG PROTOC_GEN_GO_TAG=v1.35.2
-ARG PROTOC_GEN_GO_GRPC_VERSION=v1.5.1
+ARG PROTOC_GEN_GO_TAG=v1.36.11
+ARG PROTOC_GEN_GO_GRPC_VERSION=v1.6.2
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@${PROTOC_GEN_GO_TAG}
 RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@${PROTOC_GEN_GO_GRPC_VERSION}
 
@@ -256,7 +255,7 @@ COPY --link --from=gotestsum /go/bin/gotestsum /bin/
 
 # Networking utilities
 FROM scratch as tools-net
-COPY --link --from=ghcr.io/olix0r/hokay:v0.2.2 /hokay /bin/
+COPY --link --from=ghcr.io/olix0r/hokay:v0.2.3 /usr/local/bin/hokay /bin/
 
 ##
 ## All Tools
@@ -414,7 +413,7 @@ RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/a
     scurl https://raw.githubusercontent.com/microsoft/vscode-dev-containers/main/script-library/docker-debian.sh | bash -s
 ENV DOCKER_BUILDKIT=1
 
-ARG MARKDOWNLINT_VERSION=0.15.0
+ARG MARKDOWNLINT_VERSION=0.22.1
 RUN --mount=type=cache,from=apt-node,source=/etc/apt,target=/etc/apt,ro \
     --mount=type=cache,from=apt-node,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,from=apt-node,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
