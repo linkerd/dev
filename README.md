@@ -229,6 +229,7 @@ Update k3s images for all channels:
 ```sh
 :; just sync-k3s-images
 ```
+
 ### 2. Update Versions in Dockerfile
 
 Update the versions of all the tooling pulled in Dockerfile:
