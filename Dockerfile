@@ -41,24 +41,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update
 ##
 ## Scripting tools
 ##
-
-# json5 transforms json
-FROM apt-base AS apt-json5
-RUN DEBIAN_FRONTEND=noninteractive apt-get update
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y node-json5
-# consumers use j5j as the interface to stripping comments from json
-RUN ln -s /usr/bin/json5 /usr/local/bin/j5j
-
-# just runs build/test recipes. Like `make` but a bit more ergonomic.
-FROM apt-base as just
-RUN DEBIAN_FRONTEND=noninteractive apt update
-RUN DEBIAN_FRONTEND=noninteractive apt install just
-
-# yq is kind of like jq, but for YAML.
-FROM apt-base as yq
-RUN DEBIAN_FRONTEND=noninteractive apt update
-RUN DEBIAN_FRONTEND=noninteractive apt install yq
-
 FROM scratch as tools-script
 COPY --link bin/scurl /bin/
 
@@ -277,9 +259,9 @@ COPY --link --from=tools-script /bin/* /bin/
 
 # A Go build environment.
 FROM docker.io/library/golang:${GO_TAG} as go
-RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y file jo jq
 COPY --link --from=tools-script /bin/* /usr/local/bin/
 COPY --link --from=tools-go /bin/* /usr/local/bin/
@@ -291,9 +273,9 @@ ENV PROTOC_NO_VENDOR=1 \
 
 # A Rust build environment.
 FROM docker.io/library/rust:${RUST_TAG}-slim-${DEBIAN_RELEASE} as rust
-RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         cmake \
         curl \
@@ -304,9 +286,9 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         jq \
         libssl-dev \
         pkg-config
-RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,ro \
-    --mount=type=cache,from=apt-llvm,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,from=apt-llvm,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y clang-19 llvm-19
 RUN rustup component add clippy rustfmt
 COPY --link --from=tools-lint /bin/checksec /usr/local/bin/
@@ -328,9 +310,9 @@ FROM rust as rust-musl
 RUN rustup target add \
         aarch64-unknown-linux-musl \
         x86_64-unknown-linux-musl
-RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         binutils-aarch64-linux-gnu \
         g++-aarch64-linux-gnu \
@@ -342,9 +324,9 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
 ##
 
 FROM docker.io/library/debian:${DEBIAN_RELEASE} AS devcontainer
-RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         cmake \
         curl \
@@ -354,17 +336,23 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,ro \
         iproute2 \
         jo \
         jq \
+        just \
         libssl-dev \
         locales \
         lsb-release \
         netcat-openbsd \
+        node-json5 \
         pkg-config \
         skopeo \
         sudo \
         time \
         tshark \
         umoci \
-        unzip
+        unzip \
+        yq
+
+# consumers use j5j as the interface to stripping comments from json
+RUN ln -s /usr/bin/json5 /usr/local/bin/j5j
 
 # Link the gnu versions of ranlib to the musl toolchain.
 # See: https://github.com/linkerd/linkerd2/issues/13350
@@ -380,34 +368,34 @@ RUN groupadd --gid=1000 code \
     && echo "code ALL=(root) NOPASSWD:ALL" >/etc/sudoers.d/code \
     && chmod 0440 /etc/sudoers.d/code
 
-RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,ro \
+RUN --mount=type=cache,from=apt-llvm,source=/etc/apt,target=/etc/apt,sharing=locked \
     --mount=type=cache,from=apt-llvm,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,from=apt-llvm,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
+    --mount=type=cache,from=apt-llvm,source=/var/lib/apt,target=/var/lib/apt,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y clang-19 llvm-19
 ENV CC=clang-19 \
     CXX=clang++-19
 
 # Install docker-compose since it breaks in the docker-debian script on arm64
-RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/apt \
-    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/cache/apt,target=/var/cache/apt${APT_CACHE_SHARING} \
-    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists${APT_CACHE_SHARING} \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt,sharing=locked \
     DEBIAN_FRONTEND=noninteractive apt-get install -y docker-compose
 
 # devcontainers/features: install docker do not use moby (not supported on trixie)
 # A distinct cache is used because the script adds an apt repo that we don't
 # want to pull in for other layers.
-RUN --mount=type=cache,id=apt-docker,from=apt-base,source=/etc/apt,target=/etc/apt \
-    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,id=apt-docker,from=apt-base,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt,sharing=locked \
     --mount=type=bind,from=tools,source=/bin/scurl,target=/usr/local/bin/scurl \
     scurl https://raw.githubusercontent.com/devcontainers/features/refs/heads/main/src/docker-outside-of-docker/install.sh | MOBY=false bash -s
 ENV DOCKER_BUILDKIT=1
 
 ARG MARKDOWNLINT_VERSION=0.22.1
-RUN --mount=type=cache,from=apt-node,source=/etc/apt,target=/etc/apt,ro \
-    --mount=type=cache,from=apt-node,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,from=apt-node,source=/var/lib/apt/lists,target=/var/lib/apt/lists,sharing=locked \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt,sharing=locked \
+    DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y nodejs npm
 RUN npm install "markdownlint-cli2@${MARKDOWNLINT_VERSION}" --global
 
 COPY --link --from=go /usr/local/go /usr/local/go
