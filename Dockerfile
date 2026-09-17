@@ -20,6 +20,7 @@ COPY --link bin/scurl /usr/local/bin/
 
 # See https://apt.llvm.org/.
 FROM apt-base as apt-llvm
+RUN DEBIAN_FRONTEND=noninteractive apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y gnupg2
 RUN /usr/bin/curl --tlsv1.2 -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key |/usr/bin/tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
 
