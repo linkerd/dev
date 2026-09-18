@@ -43,6 +43,18 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y node-json5
 # consumers use j5j as the interface to stripping comments from json
 RUN ln -s /usr/bin/json5 /usr/local/bin/j5j
 
+# j5j turns JSON5 into plain old JSON (i.e. to be processed by jq). Upstream
+# only publishes an x86_64 release asset, so it is built from source here to
+# support both architectures.
+FROM docker.io/library/rust:${RUST_TAG}-slim-${DEBIAN_RELEASE} as j5j
+ARG J5J_VERSION=v0.2.0 # repo=olix0r/j5j
+# Built against musl so the binary is static: it is copied into scratch-based
+# images and unpacked onto CI runners whose glibc is older than this builder's.
+RUN target="$(uname -m)-unknown-linux-musl" ; \
+    rustup target add "$target" && \
+    cargo install --git https://github.com/olix0r/j5j --tag "${J5J_VERSION}" \
+        --target "$target" --root /usr/local
+
 # just runs build/test recipes. Like `make` but a bit more ergonomic.
 FROM apt-base as just
 ARG JUST_VERSION=1.54.0 # repo=casey/just
@@ -59,6 +71,9 @@ RUN url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linu
     scurl -o /yq "$url" && chmod +x /yq
 
 FROM scratch as tools-script
+COPY --link --from=j5j /usr/local/bin/j5j /bin/
+COPY --link --from=just /usr/local/bin/just /bin/
+COPY --link --from=yq /yq /bin/
 COPY --link bin/scurl /bin/
 
 ##
