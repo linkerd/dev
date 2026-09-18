@@ -13,7 +13,6 @@ _tag :=  if _version != '' { "--tag=" + image + ':' + _version } else { "" }
 k3s-image := 'docker.io/rancher/k3s'
 
 dry_run := 'false'
-docker_arch := ''
 
 # Detect docker_bin if not specified: try docker first, then podman
 docker_bin := shell('which docker 2> /dev/null || which podman 2> /dev/null || (echo >&2 "$1error$2: neither docker nor podman found" && exit 1)', style('error'), NORMAL)
@@ -37,6 +36,15 @@ targets := 'go rust rust-musl tools devcontainer'
 
 load := 'false'
 push := 'false'
+
+# Platforms to build, as a comma-delimited list of os/arch pairs. Published
+# images must support both architectures; local builds default to the host
+# platform so that iterating on the Dockerfile stays fast (and because
+# multi-platform images cannot be loaded into the local image store).
+# See https://github.com/docker/buildx/issues/59
+docker_arch := if push == 'true' { 'linux/amd64,linux/arm64' } else { '' }
+
+_multi_arch := if docker_arch =~ ',' { 'true' } else { 'false' }
 
 # Remote mode cannot use the --output flag
 output := if podman_remote == 'true' {
@@ -158,6 +166,12 @@ _target target='' *args='':
 _build *args='':
     #!/usr/bin/env bash
     set -euo pipefail
+
+    if [ '{{ _multi_arch }}' = 'true' ] && [[ '{{ output }}' == *type=docker* ]]; then
+        echo >&2 "{{ style('error') }}error{{ NORMAL }}: multi-platform images cannot be loaded into the local image store."
+        echo >&2 "Build a single platform, e.g. docker_arch=linux/arm64, or use push=true."
+        exit 64
+    fi
 
     cmd="{{ docker_bin }} buildx build . {{ _tag }} --pull{{ _pull_policy }} \
         --progress='{{ DOCKER_PROGRESS }}' \

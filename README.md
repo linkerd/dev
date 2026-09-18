@@ -277,6 +277,18 @@ all the images directly from your branch:
 :; just push=true version=vNN build
 ```
 
+This publishes each image for both `linux/amd64` and `linux/arm64` under a single
+tag. Whichever architecture doesn't match your workstation is built under
+emulation, so expect the publish to take a while. To confirm both architectures
+made it into the manifest list:
+
+```sh
+:; docker buildx imagetools inspect ghcr.io/linkerd/dev:vNN-tools
+```
+
+Local builds are not affected: without `push=true` only the host architecture is
+built. Override either default with, for example, `docker_arch=linux/arm64`.
+
 After publication you can then trigger the tests again and they should pass.
 
 Finally merge the branch and tag the release on `main`.
