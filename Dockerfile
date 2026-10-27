@@ -5,7 +5,7 @@
 ##
 
 
-ARG GO_TAG=1.26
+ARG GO_TAG=1.26.10
 ARG RUST_TAG=1.90.0
 ARG DEBIAN_RELEASE=trixie
 
@@ -252,7 +252,8 @@ FROM docker.io/library/golang:${GO_TAG} as goplay
 RUN go install github.com/haya14busa/goplay/cmd/goplay@latest
 
 FROM docker.io/library/golang:${GO_TAG} as gopls
-RUN go install golang.org/x/tools/gopls@latest
+# gopls newer than v0.23.0 requires Go 1.27.
+RUN go install golang.org/x/tools/gopls@v0.23.0
 
 FROM docker.io/library/golang:${GO_TAG} as gotests
 RUN go install github.com/cweill/gotests/gotests@latest
