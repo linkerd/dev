@@ -6,18 +6,30 @@ on:
       - .devcontainer/**
       - .github/workflows/devcontainer.yml
       - Dockerfile
+      - bin/just-cargo
       - justfile
 
 permissions:
   contents: read
 
 jobs:
+  # Published images support both architectures, so build each on a native
+  # runner rather than under emulation.
   dev-build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    name: dev-build (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: ./actions/setup-tools
-      - run: just build
+      - run: just docker_arch=linux/${{ matrix.arch }} build
 
   dev-shellcheck:
     runs-on: ubuntu-latest
