@@ -347,22 +347,32 @@ ENV CARGO_INCREMENTAL=0 \
     RUSTUP_MAX_RETRIES=10
 ENTRYPOINT ["/usr/local/bin/just-cargo"]
 
-# musl C headers matching the musl that this Rust toolchain's musl targets link
-# (its self-contained `libc.a`), so C dependencies compile against the same libc
-# they link against. The version is read from the toolchain, so a RUST_TAG bump
-# picks up matching headers without a separate pin.
+# Builds musl C headers that match the musl release this Rust toolchain links.
+#
+# Why: musl targets compile C (e.g. `aws-lc-sys`) with clang, which otherwise
+# uses the host glibc headers. Since glibc 2.38 those redirect `sscanf`/`strtol`
+# to `__isoc23_*` symbols that musl lacks, so links fail. Debian's `musl-dev`
+# doesn't help: clang ignores its include dir and its release can differ from
+# the musl Rust links (trixie 1.2.5 vs Rust 1.90's 1.2.3).
+#
+# Caveats:
+# - The version is read with `strings` from the toolchain's `libc.a`; if musl
+#   stops embedding it, `version` is empty and the fetch fails loudly.
+# - Headers are fetched from musl.libc.org at build time, like other tools here.
+# - Both musl targets are assumed to ship the same musl release.
 FROM rust as rust-musl-patch
 # Only needed to read the bundled musl version; both targets ship the same release.
 RUN rustup target add x86_64-unknown-linux-musl
 # musl embeds its release string (e.g. 1.2.3) in libc.a; there is no rustc flag for it.
 RUN libc="$(rustc --print target-libdir --target x86_64-unknown-linux-musl)/self-contained/libc.a" && \
     version=$(strings "$libc" | grep -m1 -xE '[0-9]+\.[0-9]+\.[0-9]+') && \
+    mkdir -p /src && \
+    scurl "https://musl.libc.org/releases/musl-${version}.tar.gz" | tar xzf - --strip-components=1 -C /src && \
     for arch in x86_64 aarch64 ; do \
-        # One source tree per arch: `bits/alltypes.h` is generated per arch and a shared tree would reuse a stale one.
-        mkdir -p "/src/$arch" && \
-        scurl "https://musl.libc.org/releases/musl-${version}.tar.gz" | tar xzf - --strip-components=1 -C "/src/$arch" && \
         # Installs only headers (copy plus sed-generated bits/*.h); nothing is compiled.
-        make -C "/src/$arch" ARCH="$arch" prefix="/musl/$arch" install-headers || exit 1 ; \
+        make -C /src ARCH="$arch" prefix="/musl/$arch" install-headers && \
+        # bits/*.h are generated per arch under obj/; clear them so the next arch regenerates its own.
+        rm -rf /src/obj || exit 1 ; \
     done && \
     # Records the header version so CI can check it against the toolchain's libc.a.
     echo "$version" > /musl/VERSION
