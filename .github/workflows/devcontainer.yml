@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - .devcontainer/**
+      - .github/Dockerfile-rust-musl
       - .github/workflows/devcontainer.yml
+      - bin/just-cargo
       - Dockerfile
       - justfile
 
@@ -18,6 +20,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: ./actions/setup-tools
       - run: just build
+
+  # Builds the rust-musl image, then links a C dependency with it for both musl
+  # targets (see .github/Dockerfile-rust-musl).
+  dev-musl-link:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: ./actions/setup-tools
+      - run: just load=true version=ci targets=rust-musl build
+      - run: docker build --build-arg RUST_MUSL_IMAGE=ghcr.io/linkerd/dev:ci-rust-musl -f .github/Dockerfile-rust-musl .github
 
   dev-shellcheck:
     runs-on: ubuntu-latest

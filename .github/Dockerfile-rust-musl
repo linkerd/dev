@@ -1,0 +1,34 @@
+# Checks that the rust-musl image links a C dependency for both musl targets.
+# aws-lc-sys compiled against glibc >= 2.38 headers emits __isoc23_* symbols
+# that musl lacks; calling into it keeps the linker from dropping its archive.
+# CI passes the freshly built rust-musl image so the check tests this PR's image.
+ARG RUST_MUSL_IMAGE=ghcr.io/linkerd/dev:ci-rust-musl
+FROM ${RUST_MUSL_IMAGE}
+# aws-lc-rs pulls in aws-lc-sys, a C library sensitive to which libc headers it sees.
+ARG AWS_LC_RS_VERSION=1.18.2 # repo=aws/aws-lc-rs,prefix=v
+WORKDIR /musl-link
+RUN cargo init --quiet --name musl-link && \
+    cargo add --quiet "aws-lc-rs@=${AWS_LC_RS_VERSION}"
+# Calls into aws-lc so the linker must resolve its symbols; an unused dependency would be dropped.
+COPY <<EOF src/main.rs
+fn main() {
+    let d = aws_lc_rs::digest::digest(&aws_lc_rs::digest::SHA256, b"musl");
+    println!("{:02x?}", d.as_ref());
+}
+EOF
+# just-cargo sets the musl CC, linker and flags, as the consuming repos' builds do.
+RUN for target in x86_64-unknown-linux-musl aarch64-unknown-linux-musl ; do \
+        just-cargo target="$target" build || exit 1 ; \
+    done
+# The musl headers must come from the musl release Rust links, or C dependencies
+# can declare symbols the toolchain's libc.a lacks. Runs after the link so a
+# header mismatch with the host libc is reported first.
+RUN headers=$(cat /usr/local/musl/VERSION) && \
+    for target in x86_64-unknown-linux-musl aarch64-unknown-linux-musl ; do \
+        # musl embeds its release string in libc.a; this is the version Rust links.
+        toolchain=$(strings "$(rustc --print target-libdir --target "$target")/self-contained/libc.a" | grep -m1 -xE '[0-9]+\.[0-9]+\.[0-9]+') && \
+        if [ "$headers" != "$toolchain" ]; then \
+            echo "musl headers $headers do not match $target libc.a $toolchain" >&2 ; \
+            exit 1 ; \
+        fi ; \
+    done
