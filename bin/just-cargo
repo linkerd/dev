@@ -24,8 +24,13 @@ export RUSTFLAGS := env_var_or_default("RUSTFLAGS", "-D warnings") + if target =
 
 _llvm-version := '19'
 _clang := 'clang-' + _llvm-version
+_clang-include := '/usr/lib/llvm-19/lib/clang/19/include'
 _strip := 'llvm-strip-' + _llvm-version
 _ar := 'llvm-ar-' + _llvm-version
+# -nostdinc stops glibc's /usr/include from being searched
+# set includes appropriate to the rust target
+export CFLAGS_aarch64_unknown_linux_musl := '-nostdinc -isystem ' + _clang-include + ' -isystem /usr/include/aarch64-linux-musl'
+export CFLAGS_x86_64_unknown_linux_musl  := '-nostdinc -isystem ' + _clang-include + ' -isystem /usr/include/x86_64-linux-musl'
 
 # Use LLD to statically link binaries (when building for musl).
 _rustflags-self-contained := "-Clink-self-contained=yes -Clinker=rust-lld -Clink-arg=-fuse-ld=lld -Clink-arg=-Wl,--no-rosegment"

@@ -351,6 +351,15 @@ FROM rust as rust-musl
 RUN rustup target add \
         aarch64-unknown-linux-musl \
         x86_64-unknown-linux-musl
+RUN dpkg --add-architecture amd64 && \
+    dpkg --add-architecture arm64 && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        binutils-aarch64-linux-gnu  \
+        g++-aarch64-linux-gnu gcc-aarch64-linux-gnu \
+        libc6-dev-arm64-cross \
+        musl-dev:amd64 musl-dev:arm64
+
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt,sharing=locked \
