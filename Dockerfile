@@ -357,25 +357,29 @@ ENTRYPOINT ["/usr/local/bin/just-cargo"]
 #
 # Caveats:
 # - The version is read with `strings` from the toolchain's `libc.a`; if musl
-#   stops embedding it, `version` is empty and the fetch fails loudly.
+#   stops embedding it, `grep` finds no match and the build fails before the fetch.
 # - Headers are fetched from musl.libc.org at build time, like other tools here.
 # - Both musl targets are assumed to ship the same musl release.
 FROM rust as rust-musl-patch
 # Only needed to read the bundled musl version; both targets ship the same release.
 RUN rustup target add x86_64-unknown-linux-musl
 # musl embeds its release string (e.g. 1.2.3) in libc.a; there is no rustc flag for it.
-RUN libc="$(rustc --print target-libdir --target x86_64-unknown-linux-musl)/self-contained/libc.a" && \
-    version=$(strings "$libc" | grep -m1 -xE '[0-9]+\.[0-9]+\.[0-9]+') && \
-    mkdir -p /src && \
-    scurl "https://musl.libc.org/releases/musl-${version}.tar.gz" | tar xzf - --strip-components=1 -C /src && \
-    for arch in x86_64 aarch64 ; do \
-        # Installs only headers (copy plus sed-generated bits/*.h); nothing is compiled.
-        make -C /src ARCH="$arch" prefix="/musl/$arch" install-headers && \
-        # bits/*.h are generated per arch under obj/; clear them so the next arch regenerates its own.
-        rm -rf /src/obj || exit 1 ; \
-    done && \
-    # Records the header version so CI can check it against the toolchain's libc.a.
-    echo "$version" > /musl/VERSION
+# Saved to /musl/VERSION for the steps below and for CI to check against libc.a.
+# grep exits non-zero if no version is found, so a format change fails here.
+RUN musl_target_libdir=$(rustc --print target-libdir --target x86_64-unknown-linux-musl) && \
+    mkdir -p /musl && \
+    strings "$musl_target_libdir/self-contained/libc.a" | grep -m1 -xE '[0-9]+\.[0-9]+\.[0-9]+' > /musl/VERSION
+# Fetch the musl source for that release.
+RUN musl_version=$(cat /musl/VERSION) && \
+    scurl -o /musl.tar.gz "https://musl.libc.org/releases/musl-${musl_version}.tar.gz"
+RUN mkdir -p /src && \
+    tar xzf /musl.tar.gz --strip-components=1 -C /src
+# Installs only headers (copy plus sed-generated bits/*.h); nothing is compiled.
+RUN make -C /src ARCH=x86_64 prefix=/musl/x86_64 install-headers
+# bits/*.h are generated per arch under obj/; clear x86_64's so aarch64 regenerates its own.
+RUN rm -rf /src/obj
+# Installs the aarch64 headers.
+RUN make -C /src ARCH=aarch64 prefix=/musl/aarch64 install-headers
 
 FROM rust as rust-musl
 RUN rustup target add \
@@ -390,11 +394,7 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=loc
         gcc-aarch64-linux-gnu \
         libc6-dev-arm64-cross
 COPY --link --from=rust-musl-patch /musl /usr/local/musl
-# C compiled for musl targets must see musl's headers, not the host glibc's:
-# since glibc 2.38 those redirect `sscanf`/`strtol` to `__isoc23_*` symbols that
-# musl lacks, so crates like `aws-lc-sys` fail to link. cc-rs reads these
-# per-target variables.
-# `-isystem` searches musl's headers before /usr/include, so musl's declarations win.
+# cc-rs reads these per-target flags; `-isystem` puts musl's headers ahead of glibc's (see rust-musl-patch).
 ENV CFLAGS_x86_64_unknown_linux_musl="-isystem /usr/local/musl/x86_64/include"
 # Same for aarch64, with the aarch64 musl headers.
 ENV CFLAGS_aarch64_unknown_linux_musl="-isystem /usr/local/musl/aarch64/include"
