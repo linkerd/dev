@@ -15,7 +15,7 @@ permissions:
 jobs:
   # Published images support both architectures, so build each on a native
   # runner rather than under emulation.
-  dev-build:
+  dev-build-arch:
     strategy:
       fail-fast: false
       matrix:
@@ -30,6 +30,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: ./actions/setup-tools
       - run: just docker_arch=linux/${{ matrix.arch }} build
+
+  # Branch protection requires a check named dev-build. always() so that a
+  # failed arch build fails this check rather than skipping it.
+  dev-build:
+    needs: dev-build-arch
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test '${{ needs.dev-build-arch.result }}' = success
 
   dev-shellcheck:
     runs-on: ubuntu-latest
