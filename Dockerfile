@@ -365,6 +365,10 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=loc
         libc6-dev-arm64-cross \
         musl-dev:amd64 \
         musl-dev:arm64
+ARG CLANG_INCLUDE=/usr/lib/llvm-19/lib/clang/19/include
+ENV CFLAGS_aarch64_unknown_linux_musl="-nostdinc -isystem ${CLANG_INCLUDE} -isystem /usr/include/aarch64-linux-musl" \
+    CFLAGS_x86_64_unknown_linux_musl="-nostdinc -isystem ${CLANG_INCLUDE} -isystem /usr/include/x86_64-linux-musl" \
+    CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-linux-gnu-gcc
 
 ##
 ## Devcontainer

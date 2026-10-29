@@ -24,7 +24,6 @@ export RUSTFLAGS := env_var_or_default("RUSTFLAGS", "-D warnings") + if target =
 
 _llvm-version := '19'
 _clang := 'clang-' + _llvm-version
-_clang-include := '/usr/lib/llvm-' + _llvm-version + '/lib/clang/' + _llvm-version + '/include'
 _strip := 'llvm-strip-' + _llvm-version
 _ar := 'llvm-ar-' + _llvm-version
 
@@ -40,8 +39,6 @@ export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER := 'aarch64-linux-gnu-gcc'
 # linux/arm64 + musl
 export AR_aarch64_unknown_linux_musl := _ar
 export CC_aarch64_unknown_linux_musl := _clang
-# -nostdinc: do not search glibc for musl targets
-export CFLAGS_aarch64_unknown_linux_musl := '-nostdinc -isystem ' + _clang-include + ' -isystem /usr/include/aarch64-linux-musl'
 export STRIP_aarch64_unknown_linux_musl := _strip
 export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS := _rustflags-self-contained
 
@@ -53,10 +50,7 @@ export STRIP_x86_64_unknown_linux_gnu := _strip
 # linux/amd64 + musl
 export AR_x86_64_unknown_linux_musl := _ar
 export CC_x86_64_unknown_linux_musl := _clang
-# -nostdinc: do not search glibc for musl targets
-export CFLAGS_x86_64_unknown_linux_musl := '-nostdinc -isystem ' + _clang-include + ' -isystem /usr/include/x86_64-linux-musl'
 export STRIP_x86_64_unknown_linux_musl := _strip
-export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER := 'x86_64-linux-gnu-gcc'
 export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS := _rustflags-self-contained
 
 all: fetch clippy test
