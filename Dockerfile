@@ -365,10 +365,33 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=loc
         libc6-dev-arm64-cross \
         musl-dev:amd64 \
         musl-dev:arm64
+# Gives each musl target a directory holding only the kernel headers.
+#
+# The CFLAGS below use -nostdinc so musl C never sees the host glibc headers,
+# but musl-dev ships no kernel headers, so that also hid linux/random.h and
+# aws-lc-fips-sys failed to build. Pointing at all of /usr/include would bring
+# glibc back, so we link in just linux, asm-generic and the arch's asm.
+RUN for arch in aarch64 x86_64 ; do \
+        dir="/usr/local/include/${arch}-linux-musl-kernel" ; \
+        mkdir -p "$dir" && \
+        ln -s /usr/include/linux /usr/include/asm-generic "$dir/" && \
+        ln -s "/usr/include/${arch}-linux-gnu/asm" "$dir/asm" || exit 1 ; \
+    done
 ARG CLANG_INCLUDE=/usr/lib/llvm-19/lib/clang/19/include
-ENV CFLAGS_aarch64_unknown_linux_musl="-nostdinc -isystem ${CLANG_INCLUDE} -isystem /usr/include/aarch64-linux-musl" \
-    CFLAGS_x86_64_unknown_linux_musl="-nostdinc -isystem ${CLANG_INCLUDE} -isystem /usr/include/x86_64-linux-musl" \
-    CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-linux-gnu-gcc
+# Compiles musl C against musl's headers. Include clang, musl, and kernel headers.
+#
+# glibc 2.38+ headers rename sscanf, strtol and friends to __isoc23_* symbols
+# that musl lacks, which broke linking in v52. The kernel headers come last
+# via -idirafter, so they only fill names musl does not define.
+ENV CFLAGS_aarch64_unknown_linux_musl="-nostdinc \
+    -isystem ${CLANG_INCLUDE} \
+    -isystem /usr/include/aarch64-linux-musl \
+    -idirafter /usr/local/include/aarch64-linux-musl-kernel"
+ENV CFLAGS_x86_64_unknown_linux_musl="-nostdinc \
+    -isystem ${CLANG_INCLUDE} \
+    -isystem /usr/include/x86_64-linux-musl \
+    -idirafter /usr/local/include/x86_64-linux-musl-kernel"
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-linux-gnu-gcc
 
 ##
 ## Devcontainer
