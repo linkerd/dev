@@ -354,11 +354,21 @@ RUN rustup target add \
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt,sharing=locked \
+    dpkg --add-architecture amd64 && \
+    dpkg --add-architecture arm64 && \
+    apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         binutils-aarch64-linux-gnu \
-        g++-aarch64-linux-gnu \
+        binutils-x86-64-linux-gnu \
         gcc-aarch64-linux-gnu \
-        libc6-dev-arm64-cross
+        gcc-x86-64-linux-gnu \
+        libc6-dev-arm64-cross \
+        musl-dev:amd64 \
+        musl-dev:arm64
+ARG CLANG_INCLUDE=/usr/lib/llvm-19/lib/clang/19/include
+ENV CFLAGS_aarch64_unknown_linux_musl="-nostdinc -isystem ${CLANG_INCLUDE} -isystem /usr/include/aarch64-linux-musl" \
+    CFLAGS_x86_64_unknown_linux_musl="-nostdinc -isystem ${CLANG_INCLUDE} -isystem /usr/include/x86_64-linux-musl" \
+    CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-linux-gnu-gcc
 
 ##
 ## Devcontainer
