@@ -187,5 +187,20 @@ _build *args='':
     eval "$cmd"
 
 
+# Build test/musl-link with the rust-musl image tagged `version`: links
+# aws-lc-sys and aws-lc-fips-sys for both musl targets and fails on any
+# __isoc23_* symbol. Load the image first, e.g.
+# `just load=true version=ci targets=rust-musl build`.
+test-rust-musl:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -z '{{ _version }}' ]; then
+        echo "Usage: just version=<version> test-rust-musl" >&2
+        exit 64
+    fi
+    {{ docker_bin }} build test/musl-link \
+        --progress='{{ DOCKER_PROGRESS }}' \
+        --build-arg=RUST_MUSL_IMAGE='{{ image }}:{{ _version }}-rust-musl'
+
 md-lint *patterns="'**/*.md' '!repos/**'":
     @bin/just-md lint {{ patterns }}

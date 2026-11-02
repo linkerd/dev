@@ -8,6 +8,7 @@ on:
       - Dockerfile
       - bin/just-cargo
       - justfile
+      - test/musl-link/**
 
 permissions:
   contents: read
@@ -30,6 +31,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: ./actions/setup-tools
       - run: just docker_arch=linux/${{ matrix.arch }} build
+      # Reuses the cached build above; consumers cross-compile, so each arch
+      # builds both musl targets.
+      - run: just docker_arch=linux/${{ matrix.arch }} load=true version=ci targets=rust-musl build
+      - run: just version=ci test-rust-musl
 
   # Branch protection requires a check named dev-build. always() so that a
   # failed arch build fails this check rather than skipping it.
