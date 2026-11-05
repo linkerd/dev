@@ -7,7 +7,7 @@
 
 ARG GO_TAG=1.26.10
 ARG RUST_TAG=1.90.0
-ARG DEBIAN_RELEASE=trixie
+ARG DEBIAN_RELEASE=bookworm
 
 # These layers include Debian apt caches, so layers that extend `apt-base`
 # should not be published. Instead, these layers should be used to provide
