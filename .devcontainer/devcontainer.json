@@ -1,6 +1,6 @@
 {
     "name": "linkerd-dev",
-    "image": "ghcr.io/linkerd/dev:v55",
+    "image": "ghcr.io/linkerd/dev:v56",
     "customizations": {
         "vscode": {
             "extensions": [

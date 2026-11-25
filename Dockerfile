@@ -406,6 +406,19 @@ ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-linux-gnu-gcc
 ## Devcontainer
 ##
 
+# docker-outside-of-docker installs the docker CLI and the docker-init.sh
+# entrypoint that proxies the host's docker socket. It is pulled from the OCI
+# artifact that the devcontainer CLI uses, because install.sh sources
+# scripts/version-resolution.sh from its own directory and so cannot be piped
+# into bash.
+FROM apt-base as docker-outside-of-docker
+ARG DOCKER_OUTSIDE_OF_DOCKER_VERSION=1.10.3 # ignore
+COPY --link --from=tools-oci /bin/oras /usr/local/bin/
+WORKDIR /feature
+RUN oras pull "ghcr.io/devcontainers/features/docker-outside-of-docker:${DOCKER_OUTSIDE_OF_DOCKER_VERSION}" && \
+    tar xf devcontainer-feature-docker-outside-of-docker.tgz && \
+    rm devcontainer-feature-docker-outside-of-docker.tgz
+
 FROM docker.io/library/debian:${DEBIAN_RELEASE} AS devcontainer
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
@@ -470,8 +483,8 @@ RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=loc
 RUN --mount=type=cache,from=apt-base,source=/etc/apt,target=/etc/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/cache/apt,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,from=apt-base,source=/var/lib/apt,target=/var/lib/apt,sharing=locked \
-    --mount=type=bind,from=tools,source=/bin/scurl,target=/usr/local/bin/scurl \
-    scurl https://raw.githubusercontent.com/devcontainers/features/refs/heads/main/src/docker-outside-of-docker/install.sh | MOBY=false bash -s
+    --mount=type=bind,from=docker-outside-of-docker,source=/feature,target=/tmp/docker-outside-of-docker,rw \
+    cd /tmp/docker-outside-of-docker && MOBY=false bash ./install.sh
 ENV DOCKER_BUILDKIT=1
 
 ARG MARKDOWNLINT_VERSION=0.22.1
